@@ -106,7 +106,7 @@ Eigenkapitalrendite: ${ergebnis.eigenkapitalrendite !== null ? ergebnis.eigenkap
 Eigenkapitalrendite nach Steuern: ${ergebnis.guv.eigenkapitalrendite_nach_steuern !== null ? ergebnis.guv.eigenkapitalrendite_nach_steuern + " %" : "nicht ermittelbar (kein Eigenkapital eingesetzt, 100% fremdfinanziert)"}`,
 					},
 				],
-				max_tokens: 400,
+				max_completion_tokens: 1024,
 				temperature: 0.3,
 			}),
 		});
