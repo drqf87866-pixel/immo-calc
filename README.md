@@ -81,7 +81,7 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 - **KI-Modell-Tuning läuft noch:** Aktuell im Test ist `@cf/meta/llama-3.1-8b-instruct-fast` mit verbessertem Prompt (Ziel: kurze, aber inhaltlich starke Sätze bei akzeptabler Geschwindigkeit). Ob das die richtige Balance aus Tempo und Qualität trifft, ist zum Zeitpunkt dieses READMEs noch nicht final bestätigt.
 - **Diagnose-Fallback ist noch aktiv:** In `handlers/rendite.ts` gibt die KI-Textzuweisung im Fehlerfall aktuell `JSON.stringify(aiResponse)` statt eines festen Textes zurück – nützlich zum Debuggen, sollte aber durch eine saubere Fehlermeldung ersetzt werden, sobald das Modell final feststeht.
 - **`npx wrangler types` schlägt auf einem der beiden genutzten Laptops zuverlässig fehl** ("write EOF") – Ursache ungeklärt (Verdacht: OneDrive-Sync oder Antivirus im Projektordner). Workaround aktiv: `@cloudflare/workers-types` fest in der `tsconfig.json` eingetragen statt der automatisch generierten Typen.
-- **Git/GitHub eingerichtet:** Repo unter `drqf87866-pixel/immo-calc`. Ein GitHub-Actions-Workflow (`.github/workflows/deploy.yml`) deployt bei jedem Push auf `main` automatisch API-Worker und Frontend auf Cloudflare (Voraussetzung: die Secrets `CLOUDFLARE_API_TOKEN` und `CLOUDFLARE_ACCOUNT_ID` sind im Repo hinterlegt).
+- **Git/GitHub eingerichtet:** Repo unter `drqf87866-pixel/immo-calc`. Der Worker ist im Cloudflare-Dashboard per **Workers Builds** mit dem Repo verknüpft – jeder Push auf `main` löst automatisch Build + Deploy aus (Settings → Builds im Dashboard).
 
 ---
 
