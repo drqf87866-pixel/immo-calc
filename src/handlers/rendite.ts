@@ -86,7 +86,7 @@ export async function handleRenditeCreate(request: Request, env: Env, gastId: st
 					Authorization: `Bearer ${env.GEMINI_API_KEY}`,
 				},
 				body: JSON.stringify({
-					model: "gemini-2.5-flash",
+					model: "gemini-3.6-flash",
 				messages: [
 					{
 						role: "system",

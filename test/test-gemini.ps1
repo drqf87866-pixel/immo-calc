@@ -5,7 +5,7 @@ $headers = @{
 
 $body = @'
 {
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.6-flash",
   "messages": [{ "role": "user", "content": "Sag Hallo auf Deutsch" }]
 }
 '@
