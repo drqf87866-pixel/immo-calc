@@ -77,14 +77,14 @@ export async function handleRenditeCreate(request: Request, env: Env, gastId: st
 		const ortGekuerzt = typeof objekt.ort === "string" ? objekt.ort.trim().slice(0, 80) : "";
 		const ortHinweis = ortGekuerzt ? `Ort: ${ortGekuerzt}` : "Ort: nicht angegeben";
 
-		const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+		const cerebrasResponse = await fetch("https://api.cerebras.ai/v1/chat/completions", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${env.GROQ_API_KEY}`,
+				Authorization: `Bearer ${env.CEREBRAS_API_KEY}`,
 			},
 			body: JSON.stringify({
-				model: "openai/gpt-oss-120b",
+				model: "gpt-oss-120b",
 				reasoning_effort: "low",
 				messages: [
 					{
@@ -111,14 +111,14 @@ Eigenkapitalrendite nach Steuern: ${ergebnis.guv.eigenkapitalrendite_nach_steuer
 			}),
 		});
 
-		if (!groqResponse.ok) {
-			const fehlerText = await groqResponse.text();
-			throw new Error(`Groq-Fehler (${groqResponse.status}): ${fehlerText}`);
+		if (!cerebrasResponse.ok) {
+			const fehlerText = await cerebrasResponse.text();
+			throw new Error(`Cerebras-Fehler (${cerebrasResponse.status}): ${fehlerText}`);
 		}
 
-		const groqData: any = await groqResponse.json();
+		const cerebrasData: any = await cerebrasResponse.json();
 		const einschaetzungText: string =
-			groqData.choices?.[0]?.message?.content ?? "Keine KI-Einschätzung verfügbar.";
+			cerebrasData.choices?.[0]?.message?.content ?? "Keine KI-Einschätzung verfügbar.";
 
 		await env.immobilien_db
 			.prepare("INSERT INTO ki_einschaetzungen (kalkulation_id, text, erstellt_am) VALUES (?, ?, ?)")

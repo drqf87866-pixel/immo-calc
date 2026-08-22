@@ -1,7 +1,7 @@
 export interface Env {
 	immobilien_db: D1Database;
 	AI: Ai;
-	GROQ_API_KEY: string;
+	CEREBRAS_API_KEY: string;
 }
 
 export const corsHeaders = {
