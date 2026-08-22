@@ -1,4 +1,4 @@
-const WORKER_URL = "https://immo-calc.drqf87866.workers.dev";
+const API_BASE = "";
 
 // --- Gast-ID: pro Browser automatisch erzeugt, trennt die Daten ohne Login ---
 function holeOderErzeugeGastId() {
@@ -13,7 +13,7 @@ const GAST_ID = holeOderErzeugeGastId();
 
 function apiFetch(pfad, optionen = {}) {
   const headers = { ...(optionen.headers || {}), "X-Gast-Id": GAST_ID };
-  return fetch(WORKER_URL + pfad, { ...optionen, headers });
+  return fetch(API_BASE + pfad, { ...optionen, headers });
 }
 
 function zeigeGastCode() {

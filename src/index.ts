@@ -14,7 +14,7 @@ export default {
 		}
 
 		if (!url.pathname.startsWith("/api/")) {
-			return new Response("Hello World!");
+			return new Response("Not found", { status: 404 });
 		}
 
 		const gastId = request.headers.get("X-Gast-Id");

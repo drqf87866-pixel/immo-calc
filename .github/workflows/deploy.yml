@@ -21,16 +21,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy API Worker
+      - name: Deploy Worker (API + Frontend)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-
-      - name: Deploy Frontend (Pages)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy frontend --project-name immo-calc-frontend --branch main

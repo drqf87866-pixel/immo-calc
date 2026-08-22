@@ -1,10 +1,9 @@
 # Immo-Calc
 
-Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Cloudflare (Worker + D1 + Pages + Workers AI), kein separates Backend, keine klassische Anmeldung.
+Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Cloudflare (ein Worker mit Static Assets + D1 + Groq), kein separates Backend, keine klassische Anmeldung.
 
-**Live-URLs:**
-- Frontend: `https://immo-calc-frontend.pages.dev`
-- API/Worker: `https://immo-calc.drqf87866.workers.dev`
+**Live-URL:**
+- Komplettes Projekt (Frontend + API): `https://immo-calc.drqf87866.workers.dev`
 
 ---
 
@@ -14,7 +13,7 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 |---|---|
 | Backend | Cloudflare Worker (TypeScript) |
 | Datenbank | Cloudflare D1 (SQLite) |
-| Frontend | Statisches HTML/CSS/JS über Cloudflare Pages |
+| Frontend | Statisches HTML/CSS/JS, als Static Assets direkt vom Worker serviert |
 | KI | Cloudflare Workers AI (Modell aktuell in Feinjustierung, siehe unten) |
 | Nutzertrennung | Gast-ID im Browser (kein Login) |
 
