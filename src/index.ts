@@ -2,7 +2,6 @@ import type { Env } from "./types";
 import { corsHeaders } from "./types";
 import { handleObjekteList, handleObjektCreate, handleObjektUpdate, handleObjektDelete } from "./handlers/objekte";
 import { handleRenditeCreate } from "./handlers/rendite";
-import { handleObjektScan } from "./handlers/objekt-scan";
 import { handleKalkulationenList, handleKalkulationGet, handleKalkulationDelete } from "./handlers/kalkulationen";
 
 export default {
@@ -37,10 +36,6 @@ export default {
 
 		if (url.pathname === "/api/rendite" && request.method === "POST") {
 			return handleRenditeCreate(request, env, gastId);
-		}
-
-		if (url.pathname === "/api/objekt-scan" && request.method === "POST") {
-			return handleObjektScan(request, env);
 		}
 
 		if (url.pathname === "/api/kalkulationen" && request.method === "GET") {

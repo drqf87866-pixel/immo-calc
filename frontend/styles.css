@@ -77,29 +77,6 @@ input[type="range"] { padding: 0; border: none; background: none; accent-color: 
 .objekt-auswahl-zeile { display: flex; gap: 0.5rem; align-items: center; }
 .objekt-auswahl-zeile select { flex: 1; margin-top: 0; }
 
-.scan-box { background: var(--accent-soft); border-radius: 10px; padding: 0.8rem 0.9rem; margin-bottom: 0.9rem; }
-.scan-box[hidden] { display: none; }
-.scan-box label { margin-top: 0; }
-.scan-box textarea {
-  width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
-  color: var(--ink);
-  resize: vertical;
-}
-.scan-box textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.scan-aktion { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
-.btn-scan {
-  width: auto; margin: 0; padding: 0.45rem 0.9rem;
-  font-size: 0.78rem; font-weight: 600;
-}
-.btn-scan:disabled { opacity: 0.6; cursor: default; }
-
 .btn-bearbeiten-toggle {
   width: auto; margin-top: 0; padding: 0.55rem 0.7rem;
   background: var(--bg); color: var(--accent); border: 1px solid var(--border);

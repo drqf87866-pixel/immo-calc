@@ -129,43 +129,6 @@ function renderEingabeBox(ergebnis) {
   `;
 }
 
-// --- ImmoScout-Anzeigentext einfügen: KI liest Kaufpreis/Wohnfläche/Kaltmiete/Bezeichnung heraus ---
-async function scanneAnzeige() {
-  const feld = document.getElementById("scanText");
-  const text = feld.value.trim();
-  if (!text) return;
-
-  const btn = document.getElementById("scanBtn");
-  const urspruenglicherText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "Liest Anzeige...";
-
-  try {
-    const res = await apiFetch("/api/objekt-scan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const daten = await res.json();
-    if (daten.error) { alert(daten.error); return; }
-
-    if (daten.bezeichnung) document.getElementById("objBezeichnung").value = daten.bezeichnung;
-    if (daten.ort) document.getElementById("objOrt").value = daten.ort;
-    if (daten.kaufpreis !== null) setzeFormatierteZahl(document.getElementById("objKaufpreis"), daten.kaufpreis);
-    if (daten.wohnflaeche_qm !== null) setzeFormatierteZahl(document.getElementById("objWohnflaeche"), daten.wohnflaeche_qm);
-    if (daten.miete_kalt_monatlich !== null) setzeFormatierteZahl(document.getElementById("objKaltmiete"), daten.miete_kalt_monatlich);
-
-    if (daten.kaufpreis === null && daten.wohnflaeche_qm === null && daten.miete_kalt_monatlich === null) {
-      alert("Aus dem Text konnten keine Werte herausgelesen werden. Bitte Felder manuell prüfen.");
-    }
-  } catch (err) {
-    alert("Anzeige konnte nicht gelesen werden.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = urspruenglicherText;
-  }
-}
-
 // --- Formular-Modus-Steuerung ---
 function setzeFormularModus(modus) {
   formModus = modus;
@@ -180,13 +143,9 @@ function setzeFormularModus(modus) {
   const bearbeitenBtn = document.getElementById("bearbeitenToggleBtn");
   const loeschenBtn = document.getElementById("loeschenObjektBtn");
   const titel = document.getElementById("formTitel");
-  const scanBox = document.getElementById("scanBox");
-
-  scanBox.hidden = modus !== "neu";
 
   if (modus === "neu") {
     felder.forEach(f => { f.readOnly = false; f.value = ""; });
-    document.getElementById("scanText").value = "";
     bearbeitenBtn.hidden = true;
     loeschenBtn.hidden = true;
     submitBtn.textContent = "Rendite berechnen";
