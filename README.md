@@ -5,6 +5,8 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 **Live-URL:**
 - Komplettes Projekt (Frontend + API): `https://immo-calc.drqf87866.workers.dev`
 
+**Repository:** [drqf87866-pixel/immo-calc](https://github.com/drqf87866-pixel/immo-calc)
+
 ---
 
 ## Tech-Stack
