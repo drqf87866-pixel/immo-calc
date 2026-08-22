@@ -77,17 +77,18 @@ export async function handleRenditeCreate(request: Request, env: Env, gastId: st
 		const ortGekuerzt = typeof objekt.ort === "string" ? objekt.ort.trim().slice(0, 80) : "";
 		const ortHinweis = ortGekuerzt ? `Ort: ${ortGekuerzt}` : "Ort: nicht angegeben";
 
-		const geminiResponse = await fetch(
-			"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+		const groqResponse = await fetch(
+			"https://api.groq.com/openai/v1/chat/completions",
 			{
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${env.GEMINI_API_KEY}`,
+					Authorization: `Bearer ${env.GROQ_API_KEY}`,
 				},
 				body: JSON.stringify({
-					model: "gemini-3.6-flash",
-				messages: [
+					model: "openai/gpt-oss-120b",
+					reasoning_effort: "low",
+					messages: [
 					{
 						role: "system",
 						content:
@@ -107,19 +108,20 @@ Eigenkapitalrendite: ${ergebnis.eigenkapitalrendite !== null ? ergebnis.eigenkap
 Eigenkapitalrendite nach Steuern: ${ergebnis.guv.eigenkapitalrendite_nach_steuern !== null ? ergebnis.guv.eigenkapitalrendite_nach_steuern + " %" : "nicht ermittelbar (kein Eigenkapital eingesetzt, 100% fremdfinanziert)"}`,
 					},
 				],
-				max_tokens: 1024,
-				temperature: 0.3,
-			}),
-		});
+					max_completion_tokens: 4096,
+					temperature: 0.3,
+				}),
+			}
+		);
 
-		if (!geminiResponse.ok) {
-			const fehlerText = await geminiResponse.text();
-			throw new Error(`Gemini-Fehler (${geminiResponse.status}): ${fehlerText}`);
+		if (!groqResponse.ok) {
+			const fehlerText = await groqResponse.text();
+			throw new Error(`Groq-Fehler (${groqResponse.status}): ${fehlerText}`);
 		}
 
-		const geminiData: any = await geminiResponse.json();
+		const groqData: any = await groqResponse.json();
 		const einschaetzungText: string =
-			geminiData.choices?.[0]?.message?.content ?? "Keine KI-Einschätzung verfügbar.";
+			groqData.choices?.[0]?.message?.content ?? "Keine KI-Einschätzung verfügbar.";
 
 		await env.immobilien_db
 			.prepare("INSERT INTO ki_einschaetzungen (kalkulation_id, text, erstellt_am) VALUES (?, ?, ?)")

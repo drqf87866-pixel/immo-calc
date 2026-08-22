@@ -16,7 +16,7 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 | Backend | Cloudflare Worker (TypeScript) |
 | Datenbank | Cloudflare D1 (SQLite) |
 | Frontend | Statisches HTML/CSS/JS, als Static Assets direkt vom Worker serviert |
-| KI | Cloudflare Workers AI (Modell aktuell in Feinjustierung, siehe unten) |
+| KI | Groq (openai/gpt-oss-120b + openai/gpt-oss-20b) |
 | Nutzertrennung | Gast-ID im Browser (kein Login) |
 
 ---
@@ -49,7 +49,7 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 - Pro Berechnung bewertet ein KI-Modell jede Kennzahl einzeln (1 Satz, praktische Konsequenz statt nur "gut/schlecht")
 - Feste, recherchierte Richtwerte für den deutschen Markt sind im Prompt hinterlegt (z. B. Kaufpreisfaktor bis 20 günstig, Metropolen 25–45 normal), damit das Modell nicht raten muss
 - Werte + KI-Text werden gemeinsam in 8 Kennzahl-Kacheln auf der Ergebnisseite angezeigt (siehe Design)
-- **Modell-Historie (mehrfach getauscht, siehe "Offene Punkte"):** Cloudflare Llama 3.1 8B → Groq (Llama 3.3 70B → GPT-OSS 120B) → zurück zu Cloudflare, dort mehrere Modelle durchprobiert
+- **Modell-Historie (mehrfach getauscht, siehe "Offene Punkte"):** Cloudflare Llama 3.1 8B → Groq (Llama 3.3 70B → GPT-OSS 120B) → zurück zu Cloudflare, dort mehrere Modelle durchprobiert → Google Gemini (gemini-3.6-flash) → **Groq (GPT-OSS 120B für die Einschätzung, GPT-OSS 20B für den Objekt-Scan)**
 
 ### Design
 - Eigenes Layout ("Klar"-Stil): helles Fintech-Minimal, Inter-Schrift, ein Indigo-Akzent, große fette Kennzahlen
@@ -74,13 +74,13 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 | **Bundesland-abhängige Grunderwerbsteuer** | Ersetzt durch einfachen Kaufnebenkosten-Regler (5–15 %) – weniger fehleranfällig, keine Pflege einer 16-Länder-Tabelle nötig |
 | **Objekte als eigene Listen-Ansicht mit Löschen-Button** | Zugunsten von Papierkorb-Icon direkt im Rechner-Formular vereinfacht |
 | **Tavily-Websuche für die KI** | Bewusst nicht eingebaut: kein Ortsbezug mehr in den Daten (macht Suche kaum spezifischer als die festen Richtwerte), Risiko uneinheitlicher Ergebnisse zwischen Anfragen, zusätzliche externe Abhängigkeit ohne klaren Mehrwert |
-| **Mehrere KI-Modelle** | Cloudflare `llama-3.1-8b-instruct` (abgekündigt), Cloudflare `gemma-4-26b-a4b-it` (Reasoning-Modell, lieferte leeren Text), Groq `llama-3.3-70b-versatile` (abgekündigt), Cloudflare `llama-3.3-70b-instruct-fp8-fast` (zu langsam), Cloudflare `glm-4.7-flash` (trotz Namens ein Reasoning-Modell, lieferte trotz langer Wartezeit keinen Text) |
+| **Mehrere KI-Modelle** | Cloudflare `llama-3.1-8b-instruct` (abgekündigt), Cloudflare `gemma-4-26b-a4b-it` (Reasoning-Modell, lieferte leeren Text), Groq `llama-3.3-70b-versatile` (abgekündigt), Cloudflare `llama-3.3-70b-instruct-fp8-fast` (zu langsam), Cloudflare `glm-4.7-flash` (trotz Namens ein Reasoning-Modell, lieferte trotz langer Wartezeit keinen Text), Google Gemini `gemini-3.6-flash` (Rate-Limit 5 req/min) |
 
 ---
 
 ## Aktueller Stand / offene Punkte
 
-- **KI-Modell-Tuning läuft noch:** Aktuell im Test ist `@cf/meta/llama-3.1-8b-instruct-fast` mit verbessertem Prompt (Ziel: kurze, aber inhaltlich starke Sätze bei akzeptabler Geschwindigkeit). Ob das die richtige Balance aus Tempo und Qualität trifft, ist zum Zeitpunkt dieses READMEs noch nicht final bestätigt.
+- **KI-Provider:** Groq mit `openai/gpt-oss-120b` (KI-Einschätzung) und `openai/gpt-oss-20b` (Objekt-Scan). Secret `GROQ_API_KEY` ist in Cloudflare gesetzt; für lokale Tests liegt `GROQ_API_KEY` in `.dev.vars`.
 - **Diagnose-Fallback ist noch aktiv:** In `handlers/rendite.ts` gibt die KI-Textzuweisung im Fehlerfall aktuell `JSON.stringify(aiResponse)` statt eines festen Textes zurück – nützlich zum Debuggen, sollte aber durch eine saubere Fehlermeldung ersetzt werden, sobald das Modell final feststeht.
 - **`npx wrangler types` schlägt auf einem der beiden genutzten Laptops zuverlässig fehl** ("write EOF") – Ursache ungeklärt (Verdacht: OneDrive-Sync oder Antivirus im Projektordner). Workaround aktiv: `@cloudflare/workers-types` fest in der `tsconfig.json` eingetragen statt der automatisch generierten Typen.
 - **Git/GitHub eingerichtet:** Repo unter `drqf87866-pixel/immo-calc`. Der Worker ist im Cloudflare-Dashboard per **Workers Builds** mit dem Repo verknüpft – jeder Push auf `main` löst automatisch Build + Deploy aus (Settings → Builds im Dashboard).
@@ -91,7 +91,7 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 
 ```
 immo-calc/
-├── wrangler.jsonc              # Worker-Konfiguration (Name, D1-Binding, AI-Binding)
+├── wrangler.jsonc              # Worker-Konfiguration (Name, D1-Binding)
 ├── src/
 │   ├── index.ts                 # Routing
 │   ├── types.ts                 # Env-Interface, CORS-Header
