@@ -1,0 +1,16 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "immo-calc",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-15",
+	"d1_databases": [
+		{
+			"binding": "immobilien_db",
+			"database_name": "immobilien-db",
+			"database_id": "a74315e8-80a8-4629-ab2d-3deae4c97234"
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	}
+}

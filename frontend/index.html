@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Immo-Calc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="kopf">
+  <div class="titel">Immo-Calc</div>
+  <div class="untertitel">Rendite-Kalkulation für Kapitalanlage-Immobilien</div>
+  <div style="margin-top: 0.7rem; display: flex; gap: 1.2rem;">
+    <button type="button" class="btn-text" onclick="zeigeGastCode()">Zugangscode anzeigen</button>
+    <button type="button" class="btn-text" onclick="setzeGastCode()">Anderen Code verwenden</button>
+  </div>
+</div>
+
+<div class="seiten-grid">
+
+  <div id="ansichtHaupt">
+    <div class="karte-breit">
+      <div class="karte-titel" id="formTitel">Rendite-Rechner</div>
+      <form id="renditeForm">
+
+        <div class="spalten-titel">Objekt</div>
+
+        <div class="scan-box" id="scanBox">
+          <label style="margin-top:0;">ImmoScout-Anzeigentext einfügen (optional)
+            <small>Text aus der Anzeige kopieren und hier einfügen – die KI übernimmt Bezeichnung, Kaufpreis, Wohnfläche und Kaltmiete in die Felder unten</small>
+            <textarea id="scanText" rows="3" placeholder="Anzeigentext hier einfügen..."></textarea>
+          </label>
+          <div class="scan-aktion">
+            <button type="button" class="btn-scan" id="scanBtn" onclick="scanneAnzeige()">Daten übernehmen</button>
+          </div>
+        </div>
+
+        <div class="objekt-auswahl-zeile">
+          <select id="objektAuswahl">
+            <option value="neu">+ Neues Objekt</option>
+          </select>
+          <button type="button" class="btn-bearbeiten-toggle" id="bearbeitenToggleBtn" hidden onclick="bearbeitenToggle()">Bearbeiten</button>
+          <button type="button" class="btn-loeschen-icon" id="loeschenObjektBtn" hidden title="Objekt löschen" onclick="loescheAusgewaehltesObjekt()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+              <path d="M10 11v6"></path>
+              <path d="M14 11v6"></path>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="param-zeile">
+          <label style="flex:1.4;">Bezeichnung
+            <input type="text" id="objBezeichnung" required />
+          </label>
+          <label>Ort
+            <input type="text" id="objOrt" placeholder="z.B. München" maxlength="80" />
+          </label>
+          <label>Kaufpreis (€)
+            <input type="text" inputmode="numeric" id="objKaufpreis" required />
+          </label>
+          <label style="flex:0.7;">Wohnfläche (m²)
+            <input type="text" inputmode="numeric" id="objWohnflaeche" />
+          </label>
+          <label>Kaltmiete monatlich (€)
+            <input type="text" inputmode="numeric" id="objKaltmiete" required />
+          </label>
+        </div>
+
+        <div class="spalten-titel" style="margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--border);">Finanzierung</div>
+        <div class="param-zeile">
+          <label>Eigenkapital (€)
+            <input type="text" inputmode="numeric" id="eigenkapital" required />
+          </label>
+          <label style="flex:0.6;">Zinssatz (%)
+            <input type="number" step="0.01" id="zinssatz" required />
+          </label>
+          <label style="flex:0.6;">Tilgungssatz (%)
+            <input type="number" step="0.01" id="tilgungssatz" required />
+          </label>
+          <label style="flex:0.6;">Gebäudeanteil (%)
+            <input type="number" id="gebaeudeanteil" value="80" min="0" max="100" />
+          </label>
+          <label style="flex:0.6;">Steuersatz (%)
+            <input type="number" id="steuersatz" value="0" min="0" max="50" />
+          </label>
+        </div>
+        <div class="regler-zeile">
+          <div>
+            <label>Kaufnebenkosten: <span id="knkWert">10</span> %
+              <small>Grunderwerbsteuer, Notar, Makler zusammen</small>
+              <input type="range" id="kaufnebenkosten" min="5" max="15" step="0.5" value="10"
+                oninput="document.getElementById('knkWert').textContent = this.value" />
+            </label>
+          </div>
+          <div>
+            <label>AfA-Satz: <span id="afaWert">2</span> %
+              <small>Jährliche Gebäudeabschreibung</small>
+              <input type="range" id="afa" min="2" max="10" step="0.5" value="2"
+                oninput="document.getElementById('afaWert').textContent = this.value" />
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="formSubmitBtn">Rendite berechnen</button>
+      </form>
+    </div>
+
+    <div class="verlauf-titel">Verlauf</div>
+    <div class="verlauf-filter-zeile">
+      <select id="verlaufObjektFilter">
+        <option value="">Alle Objekte</option>
+      </select>
+    </div>
+    <div id="verlaufListe"></div>
+    <p id="verlaufLeer" class="leer-hinweis" hidden>Noch keine Berechnung gespeichert.</p>
+    <div id="vergleichsleiste" class="vergleichsleiste" hidden>
+      <span><span id="vergleichsAnzahl">0</span> ausgewählt (max. 3)</span>
+      <button type="button" onclick="zeigeVergleich()">Vergleichen</button>
+    </div>
+  </div>
+
+  <div id="ansichtErgebnis" class="inhalt-karte" hidden>
+    <button class="link-zurueck" id="zurueckButton">← Zurück</button>
+    <div id="ergebnisInhalt"></div>
+  </div>
+
+  <div id="ansichtVergleich" class="inhalt-karte" hidden>
+    <button class="link-zurueck" id="zurueckButtonVergleich">← Zurück</button>
+    <div class="verlauf-titel">Vergleich</div>
+    <div id="vergleichInhalt"></div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

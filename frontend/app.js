@@ -1,0 +1,546 @@
+const WORKER_URL = "https://immo-calc.drqf87866.workers.dev";
+
+// --- Gast-ID: pro Browser automatisch erzeugt, trennt die Daten ohne Login ---
+function holeOderErzeugeGastId() {
+  let id = localStorage.getItem("gastId");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("gastId", id);
+  }
+  return id;
+}
+const GAST_ID = holeOderErzeugeGastId();
+
+function apiFetch(pfad, optionen = {}) {
+  const headers = { ...(optionen.headers || {}), "X-Gast-Id": GAST_ID };
+  return fetch(WORKER_URL + pfad, { ...optionen, headers });
+}
+
+function zeigeGastCode() {
+  prompt("Dein Zugangscode (zum Kopieren markieren und Strg+C):", GAST_ID);
+}
+
+function setzeGastCode() {
+  const neu = prompt("Zugangscode eingeben, um deine Daten auf diesem Gerät/Browser zu laden:");
+  if (neu && neu.trim()) {
+    localStorage.setItem("gastId", neu.trim());
+    location.reload();
+  }
+}
+
+let objekteCache = [];
+let verlaufCache = [];
+let ausgewaehlteIds = [];
+let aktiverVerlaufFilter = null;
+let formModus = "neu"; // "neu" | "objekt" | "bearbeitenObjekt"
+
+function formatZahl(n) {
+  if (n === null || n === undefined) return "-";
+  return Math.round(n).toLocaleString("de-DE");
+}
+function formatQuote(n) {
+  if (n === null || n === undefined) return "-";
+  return n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function formatDatum(iso) {
+  return new Date(iso).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+}
+
+// --- Live-Formatierung mit Tausenderpunkt ---
+function formatiereEingabeMitTrennzeichen(input) {
+  input.addEventListener("input", () => {
+    const cursorVonRechts = input.value.length - input.selectionStart;
+    const rohwert = input.value.replace(/\D/g, "");
+    const formatiert = rohwert ? Number(rohwert).toLocaleString("de-DE") : "";
+    input.value = formatiert;
+    const neuePosition = Math.max(0, formatiert.length - cursorVonRechts);
+    input.setSelectionRange(neuePosition, neuePosition);
+  });
+}
+function zahlAusEingabe(input) {
+  return Number(input.value.replace(/\D/g, "")) || 0;
+}
+function setzeFormatierteZahl(input, wert) {
+  input.value = wert || wert === 0 ? Number(wert).toLocaleString("de-DE") : "";
+}
+
+["objKaufpreis", "objWohnflaeche", "objKaltmiete", "eigenkapital"].forEach(id => {
+  formatiereEingabeMitTrennzeichen(document.getElementById(id));
+});
+
+// Reihenfolge der Kennzahlen, die als Kachel erscheinen (ohne eigenen KI-Text je Kachel,
+// die Einordnung erfolgt gesammelt in der Gesamteinschätzung darunter).
+const KACHEL_METRIKEN = [
+  { label: "Kaufpreisfaktor", gerichtet: false,
+    wert: e => formatQuote(e.kaufpreisfaktor), roh: e => e.kaufpreisfaktor },
+  { label: "Kapitaldienstdeckungsgrad", gerichtet: true, schwelle: 1,
+    wert: e => formatQuote(e.kapitaldienstdeckungsgrad), roh: e => e.kapitaldienstdeckungsgrad },
+  { label: "Bruttomietrendite", gerichtet: false,
+    wert: e => formatQuote(e.bruttomietrendite) + " %", roh: e => e.bruttomietrendite },
+  { label: "Nettomietrendite", gerichtet: false,
+    wert: e => formatQuote(e.nettomietrendite) + " %", roh: e => e.nettomietrendite },
+  { label: "Cashflow vor Steuern", gerichtet: true, schwelle: 0,
+    wert: e => formatZahl(e.cashflow.cashflow_monatlich) + " €", roh: e => e.cashflow.cashflow_monatlich },
+  { label: "Cashflow nach Steuern", gerichtet: true, schwelle: 0,
+    wert: e => formatZahl(e.guv.cashflow_nach_steuern_monatlich) + " €", roh: e => e.guv.cashflow_nach_steuern_monatlich },
+  { label: "Eigenkapitalrendite", gerichtet: true, schwelle: 0,
+    wert: e => formatQuote(e.eigenkapitalrendite) + " %", roh: e => e.eigenkapitalrendite },
+  { label: "Eigenkapitalrendite nach Steuern", gerichtet: true, schwelle: 0,
+    wert: e => formatQuote(e.guv.eigenkapitalrendite_nach_steuern) + " %", roh: e => e.guv.eigenkapitalrendite_nach_steuern },
+];
+
+function renderKennzahlKacheln(ergebnis) {
+  return KACHEL_METRIKEN.map(m => {
+    const roh = m.roh(ergebnis);
+    let farbKlasse = "";
+    if (m.gerichtet && roh !== null && roh !== undefined) {
+      farbKlasse = roh < m.schwelle ? "negativ" : "positiv";
+    }
+
+    return `
+      <div class="kachel">
+        <div class="kachel-label">${m.label}</div>
+        <div class="kachel-wert num ${farbKlasse}">${m.wert(ergebnis)}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+// --- Gesamteinschätzung: 3-Satz-Fließtext der KI zum Zusammenspiel der Kennzahlen ---
+function renderGesamteinschaetzung(ergebnis) {
+  if (!ergebnis.einschaetzung) return "";
+  return `
+    <div class="gesamteinschaetzung">
+      <div class="gesamteinschaetzung-label">Gesamteinschätzung</div>
+      <div class="gesamteinschaetzung-text">${ergebnis.einschaetzung}</div>
+    </div>
+  `;
+}
+
+// --- Eingabe-Box (Kaufpreis, Eigenkapital, Zinssatz, Tilgungssatz) ---
+function renderEingabeBox(ergebnis) {
+  return `
+    <div class="eingabe-box num">
+      <div class="zeile"><span>Kaufpreis</span><span>${formatZahl(ergebnis.kaufpreis)} €</span></div>
+      <div class="zeile"><span>Eigenkapital</span><span>${formatZahl(ergebnis.eigenkapital)} €</span></div>
+      <div class="zeile"><span>Zinssatz</span><span>${formatQuote(ergebnis.zinssatz)} %</span></div>
+      <div class="zeile"><span>Tilgungssatz</span><span>${formatQuote(ergebnis.tilgungssatz)} %</span></div>
+    </div>
+  `;
+}
+
+// --- ImmoScout-Anzeigentext einfügen: KI liest Kaufpreis/Wohnfläche/Kaltmiete/Bezeichnung heraus ---
+async function scanneAnzeige() {
+  const feld = document.getElementById("scanText");
+  const text = feld.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById("scanBtn");
+  const urspruenglicherText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Liest Anzeige...";
+
+  try {
+    const res = await apiFetch("/api/objekt-scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const daten = await res.json();
+    if (daten.error) { alert(daten.error); return; }
+
+    if (daten.bezeichnung) document.getElementById("objBezeichnung").value = daten.bezeichnung;
+    if (daten.ort) document.getElementById("objOrt").value = daten.ort;
+    if (daten.kaufpreis !== null) setzeFormatierteZahl(document.getElementById("objKaufpreis"), daten.kaufpreis);
+    if (daten.wohnflaeche_qm !== null) setzeFormatierteZahl(document.getElementById("objWohnflaeche"), daten.wohnflaeche_qm);
+    if (daten.miete_kalt_monatlich !== null) setzeFormatierteZahl(document.getElementById("objKaltmiete"), daten.miete_kalt_monatlich);
+
+    if (daten.kaufpreis === null && daten.wohnflaeche_qm === null && daten.miete_kalt_monatlich === null) {
+      alert("Aus dem Text konnten keine Werte herausgelesen werden. Bitte Felder manuell prüfen.");
+    }
+  } catch (err) {
+    alert("Anzeige konnte nicht gelesen werden.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = urspruenglicherText;
+  }
+}
+
+// --- Formular-Modus-Steuerung ---
+function setzeFormularModus(modus) {
+  formModus = modus;
+  const felder = [
+    document.getElementById("objBezeichnung"),
+    document.getElementById("objOrt"),
+    document.getElementById("objKaufpreis"),
+    document.getElementById("objWohnflaeche"),
+    document.getElementById("objKaltmiete"),
+  ];
+  const submitBtn = document.getElementById("formSubmitBtn");
+  const bearbeitenBtn = document.getElementById("bearbeitenToggleBtn");
+  const loeschenBtn = document.getElementById("loeschenObjektBtn");
+  const titel = document.getElementById("formTitel");
+  const scanBox = document.getElementById("scanBox");
+
+  scanBox.hidden = modus !== "neu";
+
+  if (modus === "neu") {
+    felder.forEach(f => { f.readOnly = false; f.value = ""; });
+    document.getElementById("scanText").value = "";
+    bearbeitenBtn.hidden = true;
+    loeschenBtn.hidden = true;
+    submitBtn.textContent = "Rendite berechnen";
+    titel.textContent = "Rendite-Rechner";
+  } else if (modus === "objekt") {
+    felder.forEach(f => f.readOnly = true);
+    bearbeitenBtn.hidden = false;
+    loeschenBtn.hidden = false;
+    submitBtn.textContent = "Rendite berechnen";
+    titel.textContent = "Rendite-Rechner";
+  } else if (modus === "bearbeitenObjekt") {
+    felder.forEach(f => f.readOnly = false);
+    bearbeitenBtn.hidden = true;
+    loeschenBtn.hidden = true;
+    submitBtn.textContent = "Objekt speichern";
+    titel.textContent = "Objekt bearbeiten";
+  }
+}
+
+function bearbeitenToggle() {
+  setzeFormularModus("bearbeitenObjekt");
+}
+
+async function loescheAusgewaehltesObjekt() {
+  const auswahlId = document.getElementById("objektAuswahl").value;
+  if (!auswahlId || auswahlId === "neu") return;
+  const objekt = objekteCache.find(o => String(o.id) === auswahlId);
+  if (!confirm(`"${objekt?.bezeichnung ?? "Objekt"}" und alle zugehörigen Berechnungen wirklich löschen?`)) return;
+
+  await apiFetch("/api/objekte/" + auswahlId, { method: "DELETE" });
+
+  if (aktiverVerlaufFilter === Number(auswahlId)) {
+    aktiverVerlaufFilter = null;
+  }
+
+  document.getElementById("objektAuswahl").value = "neu";
+  setzeFormularModus("neu");
+  await ladeObjekte();
+  await ladeVerlauf();
+}
+
+document.getElementById("objektAuswahl").addEventListener("change", (e) => {
+  const wert = e.target.value;
+  if (wert === "neu") {
+    setzeFormularModus("neu");
+    return;
+  }
+  const o = objekteCache.find(x => String(x.id) === wert);
+  if (!o) return;
+  document.getElementById("objBezeichnung").value = o.bezeichnung;
+  document.getElementById("objOrt").value = o.ort ?? "";
+  setzeFormatierteZahl(document.getElementById("objKaufpreis"), o.kaufpreis);
+  setzeFormatierteZahl(document.getElementById("objWohnflaeche"), o.wohnflaeche_qm);
+  setzeFormatierteZahl(document.getElementById("objKaltmiete"), o.miete_kalt_monatlich);
+  setzeFormularModus("objekt");
+});
+
+// --- Objekte laden (füllt beide Dropdowns: Rechner + Verlauf-Filter) ---
+async function ladeObjekte() {
+  const res = await apiFetch("/api/objekte");
+  objekteCache = await res.json();
+
+  const auswahl = document.getElementById("objektAuswahl");
+  const bisherigeAuswahl = auswahl.value;
+  auswahl.innerHTML = `<option value="neu">+ Neues Objekt</option>`;
+  objekteCache.forEach(o => {
+    auswahl.innerHTML += `<option value="${o.id}">${o.bezeichnung}</option>`;
+  });
+  if ([...auswahl.options].some(opt => opt.value === bisherigeAuswahl)) {
+    auswahl.value = bisherigeAuswahl;
+  }
+
+  const filter = document.getElementById("verlaufObjektFilter");
+  const bisherigerFilter = filter.value;
+  filter.innerHTML = `<option value="">Alle Objekte</option>`;
+  objekteCache.forEach(o => {
+    filter.innerHTML += `<option value="${o.id}">${o.bezeichnung}</option>`;
+  });
+  if ([...filter.options].some(opt => opt.value === bisherigerFilter)) {
+    filter.value = bisherigerFilter;
+  }
+}
+
+document.getElementById("verlaufObjektFilter").addEventListener("change", (e) => {
+  aktiverVerlaufFilter = e.target.value ? Number(e.target.value) : null;
+  renderVerlaufListe();
+});
+
+// --- Verlauf ---
+async function ladeVerlauf() {
+  const res = await apiFetch("/api/kalkulationen");
+  verlaufCache = await res.json();
+  renderVerlaufListe();
+}
+
+function renderVerlaufListe() {
+  const liste = aktiverVerlaufFilter ? verlaufCache.filter(e => e.objekt_id === aktiverVerlaufFilter) : verlaufCache;
+
+  const container = document.getElementById("verlaufListe");
+  const leerHinweis = document.getElementById("verlaufLeer");
+  container.innerHTML = "";
+
+  if (liste.length === 0) {
+    leerHinweis.hidden = false;
+    document.getElementById("vergleichsleiste").hidden = true;
+    return;
+  }
+  leerHinweis.hidden = true;
+
+  liste.forEach(eintrag => {
+    const negativ = eintrag.cashflow_nach_steuern_monatlich < 0;
+    const angehakt = ausgewaehlteIds.includes(eintrag.id);
+    const zeile = document.createElement("div");
+    zeile.className = "liste-zeile";
+    zeile.tabIndex = 0;
+    zeile.innerHTML = `
+      <div class="links">
+        <input type="checkbox" ${angehakt ? "checked" : ""} onclick="event.stopPropagation(); toggleAuswahl(${eintrag.id}, this)" />
+        <div>
+          <div class="info">${eintrag.objekt_bezeichnung ?? "Kalkulation"}</div>
+          <div class="sub">${formatDatum(eintrag.erstellt_am)} · ${formatQuote(eintrag.bruttomietrendite)} % Brutto</div>
+        </div>
+      </div>
+      <div class="rechts">
+        <span class="cf num ${negativ ? "negativ" : "positiv"}">${formatZahl(eintrag.cashflow_nach_steuern_monatlich)} €</span>
+        <button class="btn-klein" onclick="event.stopPropagation(); loescheEintrag(${eintrag.id})">Löschen</button>
+      </div>
+    `;
+    zeile.addEventListener("click", () => zeigeKalkulation(eintrag.id));
+    container.appendChild(zeile);
+  });
+
+  aktualisiereVergleichsleiste();
+}
+
+async function loescheEintrag(id) {
+  if (!confirm("Diesen Eintrag wirklich löschen?")) return;
+  await apiFetch("/api/kalkulationen/" + id, { method: "DELETE" });
+  ausgewaehlteIds = ausgewaehlteIds.filter(x => x !== id);
+  ladeVerlauf();
+}
+
+function toggleAuswahl(id, checkbox) {
+  if (checkbox.checked) {
+    if (ausgewaehlteIds.length >= 3) {
+      checkbox.checked = false;
+      alert("Du kannst maximal 3 Berechnungen gleichzeitig vergleichen.");
+      return;
+    }
+    ausgewaehlteIds.push(id);
+  } else {
+    ausgewaehlteIds = ausgewaehlteIds.filter(x => x !== id);
+  }
+  aktualisiereVergleichsleiste();
+}
+
+function aktualisiereVergleichsleiste() {
+  const leiste = document.getElementById("vergleichsleiste");
+  if (ausgewaehlteIds.length >= 2) {
+    leiste.hidden = false;
+    document.getElementById("vergleichsAnzahl").textContent = ausgewaehlteIds.length;
+  } else {
+    leiste.hidden = true;
+  }
+}
+
+async function zeigeKalkulation(id) {
+  const res = await apiFetch("/api/kalkulationen/" + id);
+  const ergebnis = await res.json();
+  if (ergebnis.error) return;
+  renderErgebnis(ergebnis);
+  zeigeAnsicht("ergebnis");
+}
+
+async function zeigeVergleich() {
+  const ergebnisse = await Promise.all(
+    ausgewaehlteIds.map(id => apiFetch("/api/kalkulationen/" + id).then(r => r.json()))
+  );
+  renderVergleich(ergebnisse);
+  zeigeAnsicht("vergleich");
+}
+
+// --- Ansicht-Umschaltung ---
+function zeigeAnsicht(name) {
+  document.getElementById("ansichtHaupt").hidden = name !== "haupt";
+  document.getElementById("ansichtErgebnis").hidden = name !== "ergebnis";
+  document.getElementById("ansichtVergleich").hidden = name !== "vergleich";
+  if (name === "haupt") { ausgewaehlteIds = []; ladeVerlauf(); }
+}
+document.getElementById("zurueckButton").addEventListener("click", () => zeigeAnsicht("haupt"));
+document.getElementById("zurueckButtonVergleich").addEventListener("click", () => zeigeAnsicht("haupt"));
+
+// --- Cashflow-/GuV-Abschnitte (gemeinsam genutzt von Ergebnis- und Vergleichsseite) ---
+function renderCashflowAbschnitt(ergebnis) {
+  const cf = ergebnis.cashflow;
+  const negCashflow = cf.cashflow_monatlich < 0;
+  return `
+    <div class="abschnitt">
+      <div class="abschnitt-titel">Cashflow-Sicht (monatlich)</div>
+      <div class="zeile"><span>Mieteinnahmen</span><span class="num">${formatZahl(cf.miete_monatlich)} €</span></div>
+      <div class="zeile"><span>Zins</span><span class="num">-${formatZahl(cf.zins_monatlich)} €</span></div>
+      <div class="zeile"><span>Tilgung</span><span class="num">-${formatZahl(cf.tilgung_monatlich)} €</span></div>
+      <div class="zeile summe ${negCashflow ? "negativ" : "positiv"}"><span>Cashflow</span><span class="num">${formatZahl(cf.cashflow_monatlich)} €</span></div>
+    </div>
+  `;
+}
+
+function renderGuvAbschnitt(ergebnis) {
+  const guv = ergebnis.guv;
+  const negNachSteuer = guv.cashflow_nach_steuern_monatlich < 0;
+  const negGewinn = guv.steuerlicher_gewinn_jahr < 0;
+  const negEkrNachSteuer = guv.eigenkapitalrendite_nach_steuern < 0;
+  const isErstattung = guv.steuer_jahr < 0;
+  const steuerLabel = isErstattung ? "Steuererstattung" : "Steuerzahlung";
+  const steuerVorzeichen = isErstattung ? "+" : "-";
+  const steuerBetrag = formatZahl(Math.abs(guv.steuer_jahr));
+  const steuerKlasse = isErstattung ? "positiv" : "negativ";
+
+  return `
+    <div class="abschnitt">
+      <div class="abschnitt-titel">GuV-Sicht (steuerlich, pro Jahr)</div>
+      <div class="zeile"><span>Mieteinnahmen</span><span class="num">${formatZahl(guv.miete_jahr)} €</span></div>
+      <div class="zeile"><span>Zinsen</span><span class="num">-${formatZahl(guv.zinsen_jahr)} €</span></div>
+      <div class="zeile"><span>AfA (${guv.afa_prozent}% auf ${guv.gebaeudeanteil_prozent}% Gebäudeanteil)</span><span class="num">-${formatZahl(guv.afa_jahr)} €</span></div>
+      <div class="zeile summe ${negGewinn ? "negativ" : "positiv"}"><span>Steuerlicher Gewinn/Verlust</span><span class="num">${formatZahl(guv.steuerlicher_gewinn_jahr)} €</span></div>
+      <div class="zeile"><span>${steuerLabel} (${guv.steuersatz_prozent}%)</span><span class="num ${steuerKlasse}">${steuerVorzeichen}${steuerBetrag} €</span></div>
+      <div class="zeile summe ${negNachSteuer ? "negativ" : "positiv"}"><span>Cashflow nach Steuern (mtl.)</span><span class="num">${formatZahl(guv.cashflow_nach_steuern_monatlich)} €</span></div>
+      <div class="zeile summe ${negEkrNachSteuer ? "negativ" : "positiv"}"><span>Eigenkapitalrendite nach Steuern</span><span class="num">${formatQuote(guv.eigenkapitalrendite_nach_steuern)} %</span></div>
+    </div>
+  `;
+}
+
+// --- Ergebnis rendern ---
+function renderErgebnis(ergebnis) {
+  const kaufpreisProQmZeile = ergebnis.kaufpreis_pro_qm !== null && ergebnis.kaufpreis_pro_qm !== undefined
+    ? ` &nbsp;·&nbsp; Preis/m²: ${formatZahl(ergebnis.kaufpreis_pro_qm)} €`
+    : "";
+
+  document.getElementById("ergebnisInhalt").innerHTML = `
+    <div class="verlauf-titel">${ergebnis.objekt_bezeichnung ?? "Kalkulation"}</div>
+
+    ${renderEingabeBox(ergebnis)}
+
+    <p class="neben-info num">
+      Kaufnebenkosten (${ergebnis.kaufnebenkosten_prozent}%): ${formatZahl(ergebnis.kaufnebenkosten)} € &nbsp;·&nbsp;
+      Gesamtinvestition: ${formatZahl(ergebnis.gesamtinvestition)} €${kaufpreisProQmZeile}
+    </p>
+
+    <div class="kennzahl-kacheln">
+      ${renderKennzahlKacheln(ergebnis)}
+    </div>
+
+    ${renderGesamteinschaetzung(ergebnis)}
+
+    ${renderCashflowAbschnitt(ergebnis)}
+    ${renderGuvAbschnitt(ergebnis)}
+  `;
+}
+
+// --- Vergleichsansicht ---
+function renderVergleich(liste) {
+  const spalten = liste.map(ergebnis => `
+    <div class="vergleich-spalte">
+      <div class="vergleich-titel">${ergebnis.objekt_bezeichnung ?? "Kalkulation"}</div>
+      <div class="vergleich-datum">${formatDatum(ergebnis.erstellt_am)}</div>
+
+      ${renderEingabeBox(ergebnis)}
+
+      <div class="kpi-leiste-klein">
+        <div><div class="label">Brutto</div><div class="wert num">${formatQuote(ergebnis.bruttomietrendite)}%</div></div>
+        <div><div class="label">KPF</div><div class="wert num">${formatQuote(ergebnis.kaufpreisfaktor)}</div></div>
+        ${ergebnis.kaufpreis_pro_qm !== null ? `<div><div class="label">€/m²</div><div class="wert num">${formatZahl(ergebnis.kaufpreis_pro_qm)}</div></div>` : ""}
+      </div>
+
+      ${renderCashflowAbschnitt(ergebnis)}
+      ${renderGuvAbschnitt(ergebnis)}
+    </div>
+  `).join("");
+
+  document.getElementById("vergleichInhalt").innerHTML = spalten;
+}
+
+// --- Formular-Submit ---
+document.getElementById("renditeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (formModus === "bearbeitenObjekt") {
+    const auswahlId = document.getElementById("objektAuswahl").value;
+    const input = {
+      bezeichnung: document.getElementById("objBezeichnung").value,
+      ort: document.getElementById("objOrt").value || undefined,
+      kaufpreis: zahlAusEingabe(document.getElementById("objKaufpreis")),
+      wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
+      miete_kalt_monatlich: zahlAusEingabe(document.getElementById("objKaltmiete")),
+    };
+    await apiFetch("/api/objekte/" + auswahlId, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    await ladeObjekte();
+    document.getElementById("objektAuswahl").value = auswahlId;
+    document.getElementById("objektAuswahl").dispatchEvent(new Event("change"));
+    await ladeVerlauf();
+    return;
+  }
+
+  let objektId;
+  if (formModus === "neu") {
+    const input = {
+      bezeichnung: document.getElementById("objBezeichnung").value,
+      ort: document.getElementById("objOrt").value || undefined,
+      kaufpreis: zahlAusEingabe(document.getElementById("objKaufpreis")),
+      wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
+      miete_kalt_monatlich: zahlAusEingabe(document.getElementById("objKaltmiete")),
+    };
+    const res = await apiFetch("/api/objekte", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const neu = await res.json();
+    objektId = neu.id;
+  } else {
+    objektId = Number(document.getElementById("objektAuswahl").value);
+  }
+
+  const finanzierung = {
+    objekt_id: objektId,
+    eigenkapital: zahlAusEingabe(document.getElementById("eigenkapital")),
+    zinssatz: Number(document.getElementById("zinssatz").value),
+    tilgungssatz: Number(document.getElementById("tilgungssatz").value),
+    kaufnebenkosten_prozent: Number(document.getElementById("kaufnebenkosten").value),
+    afa_prozent: Number(document.getElementById("afa").value),
+    gebaeudeanteil_prozent: Number(document.getElementById("gebaeudeanteil").value),
+    steuersatz_prozent: Number(document.getElementById("steuersatz").value),
+  };
+
+  const res = await apiFetch("/api/rendite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(finanzierung),
+  });
+  const ergebnis = await res.json();
+  if (ergebnis.error) { alert(ergebnis.error); return; }
+
+  await ladeObjekte();
+  document.getElementById("objektAuswahl").value = objektId;
+  document.getElementById("objektAuswahl").dispatchEvent(new Event("change"));
+
+  renderErgebnis(ergebnis);
+  zeigeAnsicht("ergebnis");
+});
+
+setzeFormularModus("neu");
+ladeObjekte();
+ladeVerlauf();

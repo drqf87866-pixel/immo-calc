@@ -1,0 +1,210 @@
+:root {
+  --bg: #FFFFFF;
+  --surface: #F7F8FA;
+  --surface-hover: #EEF0F4;
+  --border: #E7E9EE;
+  --ink: #14161A;
+  --muted: #6B7280;
+  --accent: #2E4374;
+  --accent-soft: #E8ECF5;
+  --pos: #1F8A5F;
+  --pos-soft: #E5F3ED;
+  --neg: #C4432B;
+  --neg-soft: #FBEAE6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+.kopf { padding: 2rem 2rem 0.25rem; max-width: 900px; margin: 0 auto; }
+.kopf .titel { font-weight: 800; font-size: 1.5rem; letter-spacing: -0.02em; }
+.kopf .untertitel { color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
+
+.seiten-grid {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 2rem 3rem;
+}
+
+.karte-breit {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 1.3rem 1.4rem;
+  margin-bottom: 1.75rem;
+}
+.karte-titel { font-weight: 700; font-size: 0.98rem; margin-bottom: 1rem; }
+
+.spalten-titel { font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 0.4rem; }
+
+.param-zeile { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.param-zeile label { flex: 1; min-width: 90px; margin-top: 0; }
+
+.regler-zeile { display: flex; gap: 1.5rem; margin-top: 0.9rem; flex-wrap: wrap; align-items: start; }
+.regler-zeile > div { flex: 1; min-width: 160px; }
+
+label { display: block; margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+label small { display: block; font-weight: 400; margin-top: 0.05rem; color: var(--muted); font-size: 0.7rem; }
+
+input, select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  margin-top: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+input[readonly] { background: var(--surface-hover); color: var(--muted); cursor: default; }
+input:focus, select:focus, button:focus, .liste-zeile:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+input[type="range"] { padding: 0; border: none; background: none; accent-color: var(--accent); margin-top: 0.5rem; }
+
+.objekt-auswahl-zeile { display: flex; gap: 0.5rem; align-items: center; }
+.objekt-auswahl-zeile select { flex: 1; margin-top: 0; }
+
+.scan-box { background: var(--accent-soft); border-radius: 10px; padding: 0.8rem 0.9rem; margin-bottom: 0.9rem; }
+.scan-box[hidden] { display: none; }
+.scan-box label { margin-top: 0; }
+.scan-box textarea {
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  color: var(--ink);
+  resize: vertical;
+}
+.scan-box textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.scan-aktion { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+.btn-scan {
+  width: auto; margin: 0; padding: 0.45rem 0.9rem;
+  font-size: 0.78rem; font-weight: 600;
+}
+.btn-scan:disabled { opacity: 0.6; cursor: default; }
+
+.btn-bearbeiten-toggle {
+  width: auto; margin-top: 0; padding: 0.55rem 0.7rem;
+  background: var(--bg); color: var(--accent); border: 1px solid var(--border);
+  font-size: 0.75rem; white-space: nowrap;
+}
+.btn-bearbeiten-toggle:hover { background: var(--accent-soft); }
+
+.btn-loeschen-icon {
+  width: 38px; height: 38px; margin-top: 0; padding: 0; flex-shrink: 0;
+  background: var(--bg); color: var(--neg); border: 1px solid var(--border);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+}
+.btn-loeschen-icon:hover { background: var(--neg-soft); border-color: var(--neg-soft); }
+.btn-loeschen-icon svg { width: 15px; height: 15px; }
+/* Wichtig: sorgt dafuer, dass das hidden-Attribut den Button wirklich ausblendet,
+   statt von der .btn-loeschen-icon { display: flex } Regel ueberschrieben zu werden */
+.btn-loeschen-icon[hidden] { display: none; }
+
+button {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:hover { background: #24365E; }
+
+.btn-klein {
+  width: auto; margin: 0; padding: 0.3rem 0.6rem;
+  font-size: 0.72rem; font-weight: 500;
+  background: transparent; color: var(--neg); border: 1px solid var(--neg-soft);
+}
+.btn-klein:hover { background: var(--neg-soft); }
+
+.verlauf-titel { font-weight: 700; font-size: 1.05rem; margin-bottom: 1rem; }
+
+.verlauf-filter-zeile { margin-bottom: 1rem; }
+.verlauf-filter-zeile select { max-width: 260px; margin-top: 0; }
+
+.liste-zeile {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.85rem 0.6rem; border-radius: 10px; cursor: pointer;
+}
+.liste-zeile:hover { background: var(--surface-hover); }
+.liste-zeile .links { display: flex; align-items: center; gap: 0.7rem; }
+.liste-zeile .info { font-weight: 600; font-size: 0.85rem; }
+.liste-zeile .sub { color: var(--muted); font-size: 0.72rem; margin-top: 0.1rem; }
+.liste-zeile .rechts { display: flex; align-items: center; gap: 0.9rem; }
+.liste-zeile input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--accent); }
+
+.leer-hinweis { color: var(--muted); font-size: 0.88rem; padding: 1rem 0.4rem; }
+
+.vergleichsleiste {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--accent); color: white; padding: 0.65rem 1rem; border-radius: 10px;
+  margin-top: 0.8rem; font-size: 0.85rem;
+}
+.vergleichsleiste button { background: white; color: var(--accent); width: auto; margin: 0; padding: 0.4rem 0.8rem; }
+.vergleichsleiste button:hover { background: var(--accent-soft); }
+
+.link-zurueck {
+  background: none; color: var(--accent); border: none; margin: 0 0 1.1rem; width: auto;
+  padding: 0; font-size: 0.85rem; font-weight: 600; font-family: 'Inter', sans-serif;
+  cursor: pointer; display: flex; align-items: center; gap: 0.3rem;
+}
+.link-zurueck:hover { background: none; text-decoration: underline; }
+
+.inhalt-karte { background: var(--surface); border-radius: 14px; padding: 1.3rem 1.4rem; }
+
+/* Eingabe-Box: kompakte Anzeige der Eingabeparameter (Ergebnis- und Vergleichsseite) */
+.eingabe-box { background: var(--bg); border-radius: 8px; padding: 0.65rem 0.8rem; margin-bottom: 0.9rem; font-size: 0.78rem; }
+.eingabe-box .zeile { display: flex; justify-content: space-between; padding: 0.18rem 0; }
+.eingabe-box .zeile span:first-child { color: var(--muted); }
+
+.neben-info { color: var(--muted); font-size: 0.82rem; margin-bottom: 1.3rem; }
+.neben-info strong { color: var(--ink); }
+
+.kennzahl-kacheln { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+@media (max-width: 640px) { .kennzahl-kacheln { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 400px) { .kennzahl-kacheln { grid-template-columns: 1fr; } }
+.kachel { background: var(--bg); border-radius: 10px; padding: 0.65rem 0.75rem; }
+.kachel-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.15rem; }
+.kachel-wert { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+
+.gesamteinschaetzung { background: var(--bg); border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 0.9rem; }
+.gesamteinschaetzung-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.4rem; }
+.gesamteinschaetzung-text { font-size: 0.85rem; color: var(--ink); line-height: 1.55; }
+
+.abschnitt { background: var(--bg); border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 0.9rem; }
+.abschnitt-titel { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem; }
+.abschnitt .zeile { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.85rem; }
+.abschnitt .zeile.summe { font-weight: 700; border-top: 1px solid var(--border); margin-top: 0.2rem; padding-top: 0.5rem; }
+.positiv { color: var(--pos); }
+.negativ { color: var(--neg); }
+
+#vergleichInhalt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; align-items: start; }
+.vergleich-spalte { background: var(--surface); border-radius: 10px; padding: 1rem; }
+.vergleich-titel { font-weight: 700; font-size: 0.92rem; }
+.vergleich-datum { color: var(--muted); font-size: 0.72rem; margin-bottom: 0.7rem; }
+.kpi-leiste-klein { display: flex; gap: 1.2rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
+.kpi-leiste-klein .label { font-size: 0.7rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
+.kpi-leiste-klein .wert { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }

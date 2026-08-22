@@ -1,0 +1,15 @@
+INSERT INTO grunderwerbsteuer_saetze (bundesland, satz_prozent, gueltig_ab) VALUES
+  ('Bayern', 3.5, '1997-01-01'),
+  ('Niedersachsen', 5.0, '2014-01-01'),
+  ('Baden-Württemberg', 5.0, '2011-01-01'),
+  ('Rheinland-Pfalz', 5.0, '2012-03-01'),
+  ('Thüringen', 5.0, '2024-01-01'),
+  ('Sachsen', 5.5, '2023-01-01'),
+  ('Hamburg', 5.5, '2023-01-01'),
+  ('Bremen', 5.5, '2025-07-01'),
+  ('Berlin', 6.0, '2014-01-01'),
+  ('Mecklenburg-Vorpommern', 6.0, '2019-07-01'),
+  ('Brandenburg', 6.5, NULL),
+  ('Nordrhein-Westfalen', 6.5, '2015-01-01'),
+  ('Saarland', 6.5, NULL),
+  ('Schleswig-Holstein', 6.5, NULL);
