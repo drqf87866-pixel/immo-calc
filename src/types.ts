@@ -1,7 +1,7 @@
 export interface Env {
 	immobilien_db: D1Database;
 	AI: Ai;
-	CEREBRAS_API_KEY: string;
+	GEMINI_API_KEY: string;
 }
 
 export const corsHeaders = {
