@@ -16,14 +16,139 @@ function apiFetch(pfad, optionen = {}) {
   return fetch(API_BASE + pfad, { ...optionen, headers });
 }
 
-function zeigeGastCode() {
-  prompt("Dein Zugangscode (zum Kopieren markieren und Strg+C):", GAST_ID);
+// --- Escape-Hilfe fuer nutzerdefinierte Bezeichnungen in Template-Strings ---
+function escapceText(text) {
+  return String(text ?? "").replace(/[&<>"']/g, z => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[z]
+  ));
 }
 
-function setzeGastCode() {
-  const neu = prompt("Zugangscode eingeben, um deine Daten auf diesem Gerät/Browser zu laden:");
-  if (neu && neu.trim()) {
-    localStorage.setItem("gastId", neu.trim());
+// --- Toast-Meldungen unten mittig (Erstaz fuer alert) ---
+let toastBereich = null;
+function zeigeToast(text, typ = "info") {
+  if (!toastBereich) {
+    toastBereich = document.createElement("div");
+    toastBereich.className = "toast-bereich";
+    toastBereich.setAttribute("role", "status");
+    document.body.appendChild(toastBereich);
+  }
+  const toast = document.createElement("div");
+  toast.className = "toast" + (typ === "fehler" ? " toast-fehler" : "");
+  toast.textContent = text;
+  toastBereich.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("toast-weg");
+    setTimeout(() => toast.remove(), 300);
+  }, 3800);
+}
+
+// --- Eigene Dialoge auf <dialog>-Basis (Erstaz fuer confirm/prompt) ---
+function baueDialog() {
+  const dlg = document.createElement("dialog");
+  dlg.className = "dialog";
+  document.body.appendChild(dlg);
+  return dlg;
+}
+
+function zeigeBestaetigung(titel, text, bestaetigenLabel = "Löschen") {
+  return new Promise(resolve => {
+    const dlg = baueDialog();
+    dlg.innerHTML = `
+      <h2 class="dialog-titel"></h2>
+      <p class="dialog-text"></p>
+      <div class="dialog-aktionen">
+        <button type="button" class="btn-sekundaer js-abbrechen">Abbrechen</button>
+        <button type="button" class="js-bestaetigen"></button>
+      </div>
+    `;
+    // Nutzertexte bewusst via textContent statt innerHTML (XSS-sicher)
+    dlg.querySelector(".dialog-titel").textContent = titel;
+    dlg.querySelector(".dialog-text").textContent = text;
+    dlg.querySelector(".js-bestaetigen").textContent = bestaetigenLabel;
+
+    dlg.addEventListener("close", () => {
+      resolve(dlg.returnValue === "ja");
+      dlg.remove();
+    }, { once: true });
+    dlg.querySelector(".js-abbrechen").addEventListener("click", () => dlg.close());
+    dlg.querySelector(".js-bestaetigen").addEventListener("click", () => dlg.close("ja"));
+    dlg.showModal();
+  });
+}
+
+function zeigeEingabeDialog(titel, hinweis, startwert = "") {
+  return new Promise(resolve => {
+    const dlg = baueDialog();
+    dlg.innerHTML = `
+      <h2 class="dialog-titel"></h2>
+      <p class="dialog-text"></p>
+      <label class="dialog-eingabe-label">Zugangscode
+        <input type="text" class="dialog-code-input" autocomplete="off" spellcheck="false" maxlength="64" />
+      </label>
+      <div class="dialog-aktionen">
+        <button type="button" class="btn-sekundaer js-abbrechen">Abbrechen</button>
+        <button type="button" class="js-uebernehmen">Übernehmen</button>
+      </div>
+    `;
+    dlg.querySelector(".dialog-titel").textContent = titel;
+    dlg.querySelector(".dialog-text").textContent = hinweis;
+    const feld = dlg.querySelector("input");
+    feld.value = startwert;
+
+    dlg.addEventListener("close", () => {
+      resolve(dlg.returnValue === "ok" ? feld.value.trim() : null);
+      dlg.remove();
+    }, { once: true });
+    dlg.querySelector(".js-abbrechen").addEventListener("click", () => dlg.close());
+    dlg.querySelector(".js-uebernehmen").addEventListener("click", () => dlg.close("ok"));
+    feld.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); dlg.close("ok"); }
+    });
+    dlg.showModal();
+    feld.focus();
+  });
+}
+
+function zeigeGastCode() {
+  const dlg = baueDialog();
+  dlg.innerHTML = `
+    <h2 class="dialog-titel">Dein Zugangscode</h2>
+    <p class="dialog-text">Mit diesem Code lädst du deine Daten auf einem anderen Gerät oder in einem anderen Browser.</p>
+    <label class="dialog-eingabe-label">Code
+      <input type="text" class="dialog-code-input num" readonly />
+    </label>
+    <div class="dialog-aktionen">
+      <button type="button" class="btn-sekundaer js-kopieren">Kopieren</button>
+      <button type="button" class="js-schliessen">Schließen</button>
+    </div>
+  `;
+  const feld = dlg.querySelector("input");
+  feld.value = GAST_ID;
+  feld.addEventListener("focus", () => feld.select());
+
+  dlg.addEventListener("close", () => { dlg.remove(); }, { once: true });
+  dlg.querySelector(".js-schliessen").addEventListener("click", () => dlg.close());
+  dlg.querySelector(".js-kopieren").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(GAST_ID);
+      zeigeToast("Zugangscode kopiert.");
+    } catch {
+      feld.focus();
+      zeigeToast("Kopieren nicht möglich – Code ist markiert, bitte manuell kopieren.", "fehler");
+    }
+  });
+  dlg.showModal();
+  feld.focus();
+}
+
+async function setzeGastCode() {
+  const neu = await zeigeEingabeDialog(
+    "Anderen Zugangscode verwenden",
+    "Gib einen bestehenden Code ein, um deine Daten auf diesem Gerät oder Browser zu laden.",
+    GAST_ID
+  );
+  if (neu) {
+    localStorage.setItem("gastId", neu);
     location.reload();
   }
 }
@@ -59,6 +184,17 @@ function formatiereEingabeMitTrennzeichen(input) {
 }
 function zahlAusEingabe(input) {
   return Number(input.value.replace(/\D/g, "")) || 0;
+}
+// Prozent-Eingaben: Komma (deutsche Tastatur) -> Punkt, leere/ungueltige Werte -> 0,
+// min/max-Attribute aus dem HTML wirken als Clamp-Grenzen
+function prozentAusEingabe(input) {
+  let wert = Number(String(input.value).replace(",", ".").trim());
+  if (!isFinite(wert)) wert = 0;
+  const min = parseFloat(input.getAttribute("min"));
+  const max = parseFloat(input.getAttribute("max"));
+  if (!isNaN(min) && wert < min) wert = min;
+  if (!isNaN(max) && wert > max) wert = max;
+  return wert;
 }
 function setzeFormatierteZahl(input, wert) {
   input.value = wert || wert === 0 ? Number(wert).toLocaleString("de-DE") : "";
@@ -173,7 +309,11 @@ async function loescheAusgewaehltesObjekt() {
   const auswahlId = document.getElementById("objektAuswahl").value;
   if (!auswahlId || auswahlId === "neu") return;
   const objekt = objekteCache.find(o => String(o.id) === auswahlId);
-  if (!confirm(`"${objekt?.bezeichnung ?? "Objekt"}" und alle zugehörigen Berechnungen wirklich löschen?`)) return;
+  const bestaetigt = await zeigeBestaetigung(
+    "Objekt löschen",
+    `"${objekt?.bezeichnung ?? "Objekt"}" und alle zugehörigen Berechnungen wirklich löschen?`
+  );
+  if (!bestaetigt) return;
 
   await apiFetch("/api/objekte/" + auswahlId, { method: "DELETE" });
 
@@ -212,7 +352,7 @@ async function ladeObjekte() {
   const bisherigeAuswahl = auswahl.value;
   auswahl.innerHTML = `<option value="neu">+ Neues Objekt</option>`;
   objekteCache.forEach(o => {
-    auswahl.innerHTML += `<option value="${o.id}">${o.bezeichnung}</option>`;
+    auswahl.innerHTML += `<option value="${o.id}">${escapceText(o.bezeichnung)}</option>`;
   });
   if ([...auswahl.options].some(opt => opt.value === bisherigeAuswahl)) {
     auswahl.value = bisherigeAuswahl;
@@ -222,7 +362,7 @@ async function ladeObjekte() {
   const bisherigerFilter = filter.value;
   filter.innerHTML = `<option value="">Alle Objekte</option>`;
   objekteCache.forEach(o => {
-    filter.innerHTML += `<option value="${o.id}">${o.bezeichnung}</option>`;
+    filter.innerHTML += `<option value="${o.id}">${escapceText(o.bezeichnung)}</option>`;
   });
   if ([...filter.options].some(opt => opt.value === bisherigerFilter)) {
     filter.value = bisherigerFilter;
@@ -265,7 +405,7 @@ function renderVerlaufListe() {
       <div class="links">
         <input type="checkbox" ${angehakt ? "checked" : ""} onclick="event.stopPropagation(); toggleAuswahl(${eintrag.id}, this)" />
         <div>
-          <div class="info">${eintrag.objekt_bezeichnung ?? "Kalkulation"}</div>
+          <div class="info">${escapceText(eintrag.objekt_bezeichnung ?? "Kalkulation")}</div>
           <div class="sub">${formatDatum(eintrag.erstellt_am)} · ${formatQuote(eintrag.bruttomietrendite)} % Brutto</div>
         </div>
       </div>
@@ -282,7 +422,11 @@ function renderVerlaufListe() {
 }
 
 async function loescheEintrag(id) {
-  if (!confirm("Diesen Eintrag wirklich löschen?")) return;
+  const bestaetigt = await zeigeBestaetigung(
+    "Eintrag löschen",
+    "Diesen Eintrag wirklich aus dem Verlauf löschen?"
+  );
+  if (!bestaetigt) return;
   await apiFetch("/api/kalkulationen/" + id, { method: "DELETE" });
   ausgewaehlteIds = ausgewaehlteIds.filter(x => x !== id);
   ladeVerlauf();
@@ -292,7 +436,7 @@ function toggleAuswahl(id, checkbox) {
   if (checkbox.checked) {
     if (ausgewaehlteIds.length >= 3) {
       checkbox.checked = false;
-      alert("Du kannst maximal 3 Berechnungen gleichzeitig vergleichen.");
+      zeigeToast("Du kannst maximal 3 Berechnungen gleichzeitig vergleichen.");
       return;
     }
     ausgewaehlteIds.push(id);
@@ -315,7 +459,7 @@ function aktualisiereVergleichsleiste() {
 async function zeigeKalkulation(id) {
   const res = await apiFetch("/api/kalkulationen/" + id);
   const ergebnis = await res.json();
-  if (ergebnis.error) return;
+  if (ergebnis.error) { zeigeToast(ergebnis.error, "fehler"); return; }
   renderErgebnis(ergebnis);
   zeigeAnsicht("ergebnis");
 }
@@ -328,28 +472,68 @@ async function zeigeVergleich() {
   zeigeAnsicht("vergleich");
 }
 
-// --- Ansicht-Umschaltung ---
-function zeigeAnsicht(name) {
+// --- Ansicht-Umschaltung + minimales Hash-Routing ---
+// Der System-Zurueck-Button (popstate) fuehrt aus der Ergebnis-/Vergleichsansicht
+// zur Hauptansicht zurueck, statt die App zu verlassen. Deep-Links (#ergebnis)
+// koennen ohne geladene Inhalte nichts anzeigen und fallen sicher auf "haupt".
+const ANSICHTEN = ["haupt", "ergebnis", "vergleich"];
+
+function schalteAnsicht(name) {
   document.getElementById("ansichtHaupt").hidden = name !== "haupt";
   document.getElementById("ansichtErgebnis").hidden = name !== "ergebnis";
   document.getElementById("ansichtVergleich").hidden = name !== "vergleich";
   if (name === "haupt") { ausgewaehlteIds = []; ladeVerlauf(); }
 }
-document.getElementById("zurueckButton").addEventListener("click", () => zeigeAnsicht("haupt"));
-document.getElementById("zurueckButtonVergleich").addEventListener("click", () => zeigeAnsicht("haupt"));
+
+function zeigeAnsicht(name) {
+  const ziel = ANSICHTEN.includes(name) ? name : "haupt";
+  schalteAnsicht(ziel);
+  const zielHash = ziel === "haupt" ? "" : "#" + ziel;
+  const bereitsImVerlauf = history.state?.ansicht === ziel &&
+    location.hash === zielHash;
+  if (!bereitsImVerlauf) {
+    history.pushState({ ansicht: ziel }, "", zielHash || location.pathname + location.search);
+  }
+}
+
+window.addEventListener("popstate", e => {
+  const name = ANSICHTEN.includes(e.state?.ansicht) ? e.state.ansicht : "haupt";
+  schalteAnsicht(name);
+});
+
+function zurueckZurHauptansicht() {
+  // Sind wir per pushState in einer Unteransicht, konsumiert back() diesen Eintrag
+  if (history.state?.ansicht) {
+    history.back();
+  } else {
+    zeigeAnsicht("haupt");
+  }
+}
+document.getElementById("zurueckButton").addEventListener("click", zurueckZurHauptansicht);
+document.getElementById("zurueckButtonVergleich").addEventListener("click", zurueckZurHauptansicht);
+
+// Alter Hash beim Start neutralisieren (z.B. Reload auf #ergebnis ohne Daten)
+if (location.hash) {
+  history.replaceState({ ansicht: "haupt" }, "", location.pathname + location.search);
+}
 
 // --- Cashflow-/GuV-Abschnitte (gemeinsam genutzt von Ergebnis- und Vergleichsseite) ---
+// Als <details open>: standardmaessig ausgeklappt, auf dem Handy einklappbar;
+// die Kopfkennzahl in der summary bleibt auch eingeklappt sichtbar.
 function renderCashflowAbschnitt(ergebnis) {
   const cf = ergebnis.cashflow;
   const negCashflow = cf.cashflow_monatlich < 0;
   return `
-    <div class="abschnitt">
-      <div class="abschnitt-titel">Cashflow-Sicht (monatlich)</div>
+    <details class="abschnitt aufklappbar" open>
+      <summary>
+        <span class="abschnitt-titel">Cashflow-Sicht (monatlich)</span>
+        <span class="abschnitt-kopfwert num ${negCashflow ? "negativ" : "positiv"}">${formatZahl(cf.cashflow_monatlich)} €</span>
+      </summary>
       <div class="zeile"><span>Mieteinnahmen</span><span class="num">${formatZahl(cf.miete_monatlich)} €</span></div>
       <div class="zeile"><span>Zins</span><span class="num">-${formatZahl(cf.zins_monatlich)} €</span></div>
       <div class="zeile"><span>Tilgung</span><span class="num">-${formatZahl(cf.tilgung_monatlich)} €</span></div>
       <div class="zeile summe ${negCashflow ? "negativ" : "positiv"}"><span>Cashflow</span><span class="num">${formatZahl(cf.cashflow_monatlich)} €</span></div>
-    </div>
+    </details>
   `;
 }
 
@@ -365,8 +549,11 @@ function renderGuvAbschnitt(ergebnis) {
   const steuerKlasse = isErstattung ? "positiv" : "negativ";
 
   return `
-    <div class="abschnitt">
-      <div class="abschnitt-titel">GuV-Sicht (steuerlich, pro Jahr)</div>
+    <details class="abschnitt aufklappbar" open>
+      <summary>
+        <span class="abschnitt-titel">GuV-Sicht (steuerlich, pro Jahr)</span>
+        <span class="abschnitt-kopfwert num ${negNachSteuer ? "negativ" : "positiv"}">${formatZahl(guv.cashflow_nach_steuern_monatlich)} €</span>
+      </summary>
       <div class="zeile"><span>Mieteinnahmen</span><span class="num">${formatZahl(guv.miete_jahr)} €</span></div>
       <div class="zeile"><span>Zinsen</span><span class="num">-${formatZahl(guv.zinsen_jahr)} €</span></div>
       <div class="zeile"><span>AfA (${guv.afa_prozent}% auf ${guv.gebaeudeanteil_prozent}% Gebäudeanteil)</span><span class="num">-${formatZahl(guv.afa_jahr)} €</span></div>
@@ -374,7 +561,7 @@ function renderGuvAbschnitt(ergebnis) {
       <div class="zeile"><span>${steuerLabel} (${guv.steuersatz_prozent}%)</span><span class="num ${steuerKlasse}">${steuerVorzeichen}${steuerBetrag} €</span></div>
       <div class="zeile summe ${negNachSteuer ? "negativ" : "positiv"}"><span>Cashflow nach Steuern (mtl.)</span><span class="num">${formatZahl(guv.cashflow_nach_steuern_monatlich)} €</span></div>
       <div class="zeile summe ${negEkrNachSteuer ? "negativ" : "positiv"}"><span>Eigenkapitalrendite nach Steuern</span><span class="num">${formatQuote(guv.eigenkapitalrendite_nach_steuern)} %</span></div>
-    </div>
+    </details>
   `;
 }
 
@@ -385,7 +572,7 @@ function renderErgebnis(ergebnis) {
     : "";
 
   document.getElementById("ergebnisInhalt").innerHTML = `
-    <div class="verlauf-titel">${ergebnis.objekt_bezeichnung ?? "Kalkulation"}</div>
+    <div class="verlauf-titel">${escapceText(ergebnis.objekt_bezeichnung ?? "Kalkulation")}</div>
 
     ${renderEingabeBox(ergebnis)}
 
@@ -409,7 +596,7 @@ function renderErgebnis(ergebnis) {
 function renderVergleich(liste) {
   const spalten = liste.map(ergebnis => `
     <div class="vergleich-spalte">
-      <div class="vergleich-titel">${ergebnis.objekt_bezeichnung ?? "Kalkulation"}</div>
+      <div class="vergleich-titel">${escapceText(ergebnis.objekt_bezeichnung ?? "Kalkulation")}</div>
       <div class="vergleich-datum">${formatDatum(ergebnis.erstellt_am)}</div>
 
       ${renderEingabeBox(ergebnis)}
@@ -476,12 +663,12 @@ document.getElementById("renditeForm").addEventListener("submit", async (e) => {
   const finanzierung = {
     objekt_id: objektId,
     eigenkapital: zahlAusEingabe(document.getElementById("eigenkapital")),
-    zinssatz: Number(document.getElementById("zinssatz").value),
-    tilgungssatz: Number(document.getElementById("tilgungssatz").value),
+    zinssatz: prozentAusEingabe(document.getElementById("zinssatz")),
+    tilgungssatz: prozentAusEingabe(document.getElementById("tilgungssatz")),
     kaufnebenkosten_prozent: Number(document.getElementById("kaufnebenkosten").value),
     afa_prozent: Number(document.getElementById("afa").value),
-    gebaeudeanteil_prozent: Number(document.getElementById("gebaeudeanteil").value),
-    steuersatz_prozent: Number(document.getElementById("steuersatz").value),
+    gebaeudeanteil_prozent: prozentAusEingabe(document.getElementById("gebaeudeanteil")),
+    steuersatz_prozent: prozentAusEingabe(document.getElementById("steuersatz")),
   };
 
   const res = await apiFetch("/api/rendite", {
@@ -490,7 +677,7 @@ document.getElementById("renditeForm").addEventListener("submit", async (e) => {
     body: JSON.stringify(finanzierung),
   });
   const ergebnis = await res.json();
-  if (ergebnis.error) { alert(ergebnis.error); return; }
+  if (ergebnis.error) { zeigeToast(ergebnis.error, "fehler"); return; }
 
   await ladeObjekte();
   document.getElementById("objektAuswahl").value = objektId;

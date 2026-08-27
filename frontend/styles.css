@@ -58,13 +58,14 @@ label small { display: block; font-weight: 400; margin-top: 0.05rem; color: var(
 
 input, select {
   width: 100%;
-  padding: 0.55rem 0.65rem;
+  padding: 0.6rem 0.7rem;
   margin-top: 0.3rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
   font-family: 'Inter', sans-serif;
-  font-size: 0.88rem;
+  /* Wichtig: >=16px, sonst zoomt iOS Safari beim Fokus ins Eingabefeld */
+  font-size: 1rem;
   color: var(--ink);
 }
 input[readonly] { background: var(--surface-hover); color: var(--muted); cursor: default; }
@@ -74,8 +75,10 @@ input:focus, select:focus, button:focus, .liste-zeile:focus {
 }
 input[type="range"] { padding: 0; border: none; background: none; accent-color: var(--accent); margin-top: 0.5rem; }
 
-.objekt-auswahl-zeile { display: flex; gap: 0.5rem; align-items: center; }
-.objekt-auswahl-zeile select { flex: 1; margin-top: 0; }
+.objekt-auswahl-zeile { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+/* min-width: 0 erlaubt dem Select das Schrumpfen unter den lange Optionsnamen,
+   ohne die Zeile ueber den Viewport zu druecken */
+.objekt-auswahl-zeile select { flex: 1; min-width: 0; margin-top: 0; }
 
 .btn-bearbeiten-toggle {
   width: auto; margin-top: 0; padding: 0.55rem 0.7rem;
@@ -85,12 +88,12 @@ input[type="range"] { padding: 0; border: none; background: none; accent-color: 
 .btn-bearbeiten-toggle:hover { background: var(--accent-soft); }
 
 .btn-loeschen-icon {
-  width: 38px; height: 38px; margin-top: 0; padding: 0; flex-shrink: 0;
+  width: 44px; height: 44px; margin-top: 0; padding: 0; flex-shrink: 0;
   background: var(--bg); color: var(--neg); border: 1px solid var(--border);
   border-radius: 8px; display: flex; align-items: center; justify-content: center;
 }
 .btn-loeschen-icon:hover { background: var(--neg-soft); border-color: var(--neg-soft); }
-.btn-loeschen-icon svg { width: 15px; height: 15px; }
+.btn-loeschen-icon svg { width: 16px; height: 16px; }
 /* Wichtig: sorgt dafuer, dass das hidden-Attribut den Button wirklich ausblendet,
    statt von der .btn-loeschen-icon { display: flex } Regel ueberschrieben zu werden */
 .btn-loeschen-icon[hidden] { display: none; }
@@ -98,6 +101,8 @@ input[type="range"] { padding: 0; border: none; background: none; accent-color: 
 button {
   margin-top: 1rem;
   width: 100%;
+  /* Touch-Ziel: mindestens ~44px hoch fuer Daumenbedienung */
+  min-height: 46px;
   padding: 0.6rem 1rem;
   background: var(--accent);
   color: white;
@@ -111,7 +116,8 @@ button {
 button:hover { background: #24365E; }
 
 .btn-klein {
-  width: auto; margin: 0; padding: 0.3rem 0.6rem;
+  width: auto; margin: 0; padding: 0.4rem 0.8rem;
+  min-height: 44px;
   font-size: 0.72rem; font-weight: 500;
   background: transparent; color: var(--neg); border: 1px solid var(--neg-soft);
 }
@@ -124,14 +130,17 @@ button:hover { background: #24365E; }
 
 .liste-zeile {
   display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; row-gap: 0.5rem;
   padding: 0.85rem 0.6rem; border-radius: 10px; cursor: pointer;
 }
 .liste-zeile:hover { background: var(--surface-hover); }
-.liste-zeile .links { display: flex; align-items: center; gap: 0.7rem; }
-.liste-zeile .info { font-weight: 600; font-size: 0.85rem; }
+/* min-width 0 + overflow-wrap: lange Objektbezeichnungen umbrechen,
+   statt die Zeile aufzudruecken */
+.liste-zeile .links { display: flex; align-items: center; gap: 0.7rem; min-width: 0; flex: 1; }
+.liste-zeile .info { font-weight: 600; font-size: 0.85rem; overflow-wrap: anywhere; }
 .liste-zeile .sub { color: var(--muted); font-size: 0.72rem; margin-top: 0.1rem; }
-.liste-zeile .rechts { display: flex; align-items: center; gap: 0.9rem; }
-.liste-zeile input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--accent); }
+.liste-zeile .rechts { display: flex; align-items: center; gap: 0.9rem; flex-shrink: 0; margin-left: auto; }
+.liste-zeile input[type="checkbox"] { width: 1.2rem; height: 1.2rem; margin: 0; accent-color: var(--accent); }
 
 .leer-hinweis { color: var(--muted); font-size: 0.88rem; padding: 1rem 0.4rem; }
 
@@ -140,7 +149,7 @@ button:hover { background: #24365E; }
   background: var(--accent); color: white; padding: 0.65rem 1rem; border-radius: 10px;
   margin-top: 0.8rem; font-size: 0.85rem;
 }
-.vergleichsleiste button { background: white; color: var(--accent); width: auto; margin: 0; padding: 0.4rem 0.8rem; }
+.vergleichsleiste button { background: white; color: var(--accent); width: auto; margin: 0; padding: 0.4rem 1rem; min-height: 44px; }
 .vergleichsleiste button:hover { background: var(--accent-soft); }
 
 .link-zurueck {
@@ -154,8 +163,9 @@ button:hover { background: #24365E; }
 
 /* Eingabe-Box: kompakte Anzeige der Eingabeparameter (Ergebnis- und Vergleichsseite) */
 .eingabe-box { background: var(--bg); border-radius: 8px; padding: 0.65rem 0.8rem; margin-bottom: 0.9rem; font-size: 0.78rem; }
-.eingabe-box .zeile { display: flex; justify-content: space-between; padding: 0.18rem 0; }
+.eingabe-box .zeile { display: flex; justify-content: space-between; gap: 1rem; padding: 0.18rem 0; }
 .eingabe-box .zeile span:first-child { color: var(--muted); }
+.eingabe-box .zeile span:last-child { white-space: nowrap; }
 
 .neben-info { color: var(--muted); font-size: 0.82rem; margin-bottom: 1.3rem; }
 .neben-info strong { color: var(--ink); }
@@ -173,15 +183,123 @@ button:hover { background: #24365E; }
 
 .abschnitt { background: var(--bg); border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 0.9rem; }
 .abschnitt-titel { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem; }
-.abschnitt .zeile { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.85rem; }
+.abschnitt .zeile { display: flex; justify-content: space-between; gap: 1rem; padding: 0.3rem 0; font-size: 0.85rem; }
+.abschnitt .zeile span:last-child { white-space: nowrap; }
 .abschnitt .zeile.summe { font-weight: 700; border-top: 1px solid var(--border); margin-top: 0.2rem; padding-top: 0.5rem; }
 .positiv { color: var(--pos); }
 .negativ { color: var(--neg); }
 
 #vergleichInhalt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; align-items: start; }
 .vergleich-spalte { background: var(--surface); border-radius: 10px; padding: 1rem; }
-.vergleich-titel { font-weight: 700; font-size: 0.92rem; }
+.vergleich-titel { font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere; }
 .vergleich-datum { color: var(--muted); font-size: 0.72rem; margin-bottom: 0.7rem; }
 .kpi-leiste-klein { display: flex; gap: 1.2rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
 .kpi-leiste-klein .label { font-size: 0.7rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
 .kpi-leiste-klein .wert { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
+
+/* ===== Kopf-Aktionen & ruhige Textbuttons ===== */
+.kopf-aktionen { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; }
+.btn-text {
+  width: auto; margin-top: 0; min-height: 44px;
+  padding: 0.35rem 0.5rem;
+  background: none;
+  color: var(--accent);
+  font-size: 0.82rem; font-weight: 600;
+  cursor: pointer;
+}
+.btn-text:hover { background: none; color: #24365E; text-decoration: underline; }
+
+/* ===== Eigene Dialoge (Erstaz fuer native prompt/confirm/alert) ===== */
+dialog.dialog {
+  border: none;
+  border-radius: 14px;
+  padding: 1.25rem 1.3rem;
+  width: min(92vw, 420px);
+  box-shadow: 0 24px 60px rgba(20, 22, 26, 0.25);
+}
+dialog.dialog::backdrop { background: rgba(20, 22, 26, 0.45); }
+.dialog-titel { font-weight: 700; font-size: 1rem; margin: 0 0 0.35rem; }
+.dialog-text { margin: 0; font-size: 0.9rem; line-height: 1.55; overflow-wrap: anywhere; }
+.dialog-eingabe-label { margin-top: 1rem; }
+.dialog-code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.03em;
+}
+.dialog-aktionen { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
+.dialog-aktionen button { width: auto; margin-top: 0; padding: 0.55rem 1.1rem; }
+.btn-sekundaer { background: var(--bg); color: var(--accent); border: 1px solid var(--border); }
+.btn-sekundaer:hover { background: var(--accent-soft); }
+
+/* ===== Toasts (unten mittig, ueber der Safe-Area) ===== */
+.toast-bereich {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 999;
+  max-width: min(92vw, 480px);
+  pointer-events: none;
+}
+.toast {
+  background: var(--ink);
+  color: white;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(20, 22, 26, 0.28);
+  overflow-wrap: anywhere;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.toast-fehler { background: var(--neg); }
+.toast.toast-weg { opacity: 0; transform: translateY(6px); }
+
+/* ===== Aufklappbare Kennzahlen-Abschnitte ===== */
+details.abschnitt summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 0.15rem;
+}
+details.abschnitt summary::-webkit-details-marker { display: none; }
+details.abschnitt summary::after {
+  content: "▾";
+  color: var(--muted);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transform-origin: center;
+  transition: transform 0.15s ease;
+}
+details.abschnitt[open] summary::after { transform: rotate(180deg); }
+summary .abschnitt-titel { margin-bottom: 0; }
+.abschnitt-kopfwert { font-weight: 800; font-size: 0.95rem; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+  details.abschnitt summary::after { transition: none; }
+}
+
+/* ===== Mobile Anpassungen (<640px) ===== */
+@media (max-width: 640px) {
+  .kopf { padding: 1.25rem 1rem 0.25rem; }
+  .seiten-grid { padding: 1rem 1rem 2.5rem; }
+
+  /* Formular: bewusst einspaltig statt unkontrolliertem flex-wrap-Umbruch
+     (Inline-flex-Ratios der Labels sind im Grid-Kontext wirkungslos) */
+  .param-zeile { display: grid; grid-template-columns: 1fr; }
+  .regler-zeile { flex-direction: column; gap: 0.9rem; }
+
+  .verlauf-filter-zeile select { max-width: none; width: 100%; }
+
+  /* Kleinst-Fontgroessen auf kompakten Displays besser lesbar */
+  .kachel-label { font-size: 0.68rem; }
+  .liste-zeile .sub { font-size: 0.78rem; }
+  .abschnitt .zeile { font-size: 0.9rem; }
+}
