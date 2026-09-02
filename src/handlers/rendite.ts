@@ -154,20 +154,25 @@ Eigenkapitalrendite nach Steuern: ${ergebnis.guv.eigenkapitalrendite_nach_steuer
 		];
 
 		let einschaetzung: string;
-		if (!(await kiLimitVerfuegbar(env))) {
-			einschaetzung = `Keine KI-Einschätzung verfügbar (globales Limit von ${KI_LIMIT_PRO_MINUTE} Anfragen pro Minute erreicht, bitte kurz warten)`;
-		} else {
-			try {
+		try {
+			if (!(await kiLimitVerfuegbar(env))) {
+				einschaetzung = `Keine KI-Einschätzung verfügbar (globales Limit von ${KI_LIMIT_PRO_MINUTE} Anfragen pro Minute erreicht, bitte kurz warten)`;
+			} else {
 				einschaetzung = await holeEinschaetzung(env.GEMINI_API_KEY, messages);
-			} catch (err) {
-				einschaetzung = `Keine KI-Einschätzung verfügbar (${err instanceof Error ? err.message : String(err)})`;
 			}
+		} catch (err) {
+			einschaetzung = `Keine KI-Einschätzung verfügbar (${err instanceof Error ? err.message : String(err)})`;
 		}
 
-		await env.immobilien_db
-			.prepare("INSERT INTO ki_einschaetzungen (kalkulation_id, anbieter, text, erstellt_am) VALUES (?, ?, ?, ?)")
-			.bind(insertResult.meta.last_row_id, "gemini", einschaetzung, new Date().toISOString())
-			.run();
+		try {
+			await env.immobilien_db
+				.prepare("INSERT INTO ki_einschaetzungen (kalkulation_id, anbieter, text, erstellt_am) VALUES (?, ?, ?, ?)")
+				.bind(insertResult.meta.last_row_id, "gemini", einschaetzung, new Date().toISOString())
+				.run();
+		} catch {
+			// z. B. Migration 0005 (Spalte "anbieter") noch nicht angewendet - Speichern der
+			// KI-Einschätzung ist nebensächlich, die Kalkulation selbst darf trotzdem zurückgehen.
+		}
 
 		return Response.json(
 			{
