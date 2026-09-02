@@ -204,6 +204,94 @@ function setzeFormatierteZahl(input, wert) {
   formatiereEingabeMitTrennzeichen(document.getElementById(id));
 });
 
+// --- Debounce-Hilfsfunktion (wird bisher nirgends im Projekt gebraucht) ---
+function debounce(fn, wartezeitMs) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wartezeitMs);
+  };
+}
+
+// --- Reine Rechenlogik, 1:1 portiert aus src/rendite.ts (berechneRendite()) ---
+// Quelle der Wahrheit bleibt src/rendite.ts; bei Aenderungen dort bitte hier nachziehen,
+// da es ohne Build-Step kein gemeinsames Modul zwischen Worker und Frontend gibt.
+function berechneRenditeClient(input) {
+  const round0 = n => Math.round(n);
+  const round2 = n => Math.round(n * 100) / 100;
+
+  const kaufnebenkostenProzent = input.kaufnebenkosten_prozent ?? 10;
+  const afaProzent = input.afa_prozent ?? 2;
+  const gebaeudeanteilProzent = input.gebaeudeanteil_prozent ?? 80;
+  const steuersatzProzent = input.steuersatz_prozent ?? 0;
+
+  const kaufnebenkosten = input.kaufpreis * (kaufnebenkostenProzent / 100);
+  const gesamtinvestition = input.kaufpreis + kaufnebenkosten;
+
+  const jahreskaltmiete = input.miete_kalt_monatlich * 12;
+
+  const bruttomietrendite = (jahreskaltmiete / input.kaufpreis) * 100;
+  const nettomietrendite = (jahreskaltmiete / gesamtinvestition) * 100;
+  const kaufpreisfaktor = input.kaufpreis / jahreskaltmiete;
+
+  const kaufpreisProQm =
+    input.wohnflaeche_qm && input.wohnflaeche_qm > 0
+      ? input.kaufpreis / input.wohnflaeche_qm
+      : null;
+
+  const darlehenssumme = gesamtinvestition - input.eigenkapital;
+  const zinsenJahr = darlehenssumme * (input.zinssatz / 100);
+  const tilgungJahr = darlehenssumme * (input.tilgungssatz / 100);
+  const kapitaldienstJahr = zinsenJahr + tilgungJahr;
+  const cashflowJahr = jahreskaltmiete - kapitaldienstJahr;
+
+  const kapitaldienstdeckungsgrad = kapitaldienstJahr > 0 ? jahreskaltmiete / kapitaldienstJahr : null;
+
+  const eigenkapitalrendite =
+    input.eigenkapital > 0 ? (cashflowJahr / input.eigenkapital) * 100 : null;
+
+  const afaBemessungsgrundlage = gesamtinvestition * (gebaeudeanteilProzent / 100);
+  const afaJahr = afaBemessungsgrundlage * (afaProzent / 100);
+  const steuerlicherGewinnJahr = jahreskaltmiete - zinsenJahr - afaJahr;
+  const steuerJahr = steuerlicherGewinnJahr * (steuersatzProzent / 100);
+  const cashflowNachSteuernJahr = cashflowJahr - steuerJahr;
+
+  const eigenkapitalrenditeNachSteuern =
+    input.eigenkapital > 0 ? (cashflowNachSteuernJahr / input.eigenkapital) * 100 : null;
+
+  return {
+    kaufnebenkosten: round0(kaufnebenkosten),
+    kaufnebenkosten_prozent: kaufnebenkostenProzent,
+    gesamtinvestition: round0(gesamtinvestition),
+    bruttomietrendite: round2(bruttomietrendite),
+    nettomietrendite: round2(nettomietrendite),
+    kaufpreisfaktor: round2(kaufpreisfaktor),
+    kapitaldienstdeckungsgrad: kapitaldienstdeckungsgrad !== null ? round2(kapitaldienstdeckungsgrad) : null,
+    kaufpreis_pro_qm: kaufpreisProQm !== null ? round0(kaufpreisProQm) : null,
+    darlehenssumme: round0(darlehenssumme),
+    eigenkapitalrendite: eigenkapitalrendite !== null ? round2(eigenkapitalrendite) : null,
+    cashflow: {
+      miete_monatlich: round0(input.miete_kalt_monatlich),
+      zins_monatlich: round0(zinsenJahr / 12),
+      tilgung_monatlich: round0(tilgungJahr / 12),
+      cashflow_monatlich: round0(cashflowJahr / 12),
+    },
+    guv: {
+      miete_jahr: round0(jahreskaltmiete),
+      zinsen_jahr: round0(zinsenJahr),
+      afa_jahr: round0(afaJahr),
+      afa_prozent: afaProzent,
+      gebaeudeanteil_prozent: gebaeudeanteilProzent,
+      steuerlicher_gewinn_jahr: round0(steuerlicherGewinnJahr),
+      steuersatz_prozent: steuersatzProzent,
+      steuer_jahr: round0(steuerJahr),
+      cashflow_nach_steuern_monatlich: round0(cashflowNachSteuernJahr / 12),
+      eigenkapitalrendite_nach_steuern:
+        eigenkapitalrenditeNachSteuern !== null ? round2(eigenkapitalrenditeNachSteuern) : null,
+    },
+  };
+}
+
 // Reihenfolge der Kennzahlen, die als Kachel erscheinen (ohne eigenen KI-Text je Kachel,
 // die Einordnung erfolgt gesammelt in der Gesamteinschätzung darunter).
 const KACHEL_METRIKEN = [
@@ -241,6 +329,57 @@ function renderKennzahlKacheln(ergebnis) {
     `;
   }).join("");
 }
+
+// --- Live-Vorschau im Rechner: reine Zahlen-Kacheln ohne Speichern/KI-Aufruf ---
+function aktualisiereLiveVorschau() {
+  const panel = document.getElementById("liveVorschauKacheln");
+  if (!panel) return;
+  const leerHinweis = document.getElementById("liveVorschauLeer");
+  const kiHinweis = document.getElementById("liveVorschauHinweis");
+
+  const kaufpreis = zahlAusEingabe(document.getElementById("objKaufpreis"));
+  const kaltmiete = zahlAusEingabe(document.getElementById("objKaltmiete"));
+
+  if (!kaufpreis || !kaltmiete) {
+    panel.innerHTML = "";
+    leerHinweis.hidden = false;
+    kiHinweis.hidden = true;
+    return;
+  }
+  leerHinweis.hidden = true;
+  kiHinweis.hidden = false;
+
+  const input = {
+    kaufpreis,
+    miete_kalt_monatlich: kaltmiete,
+    eigenkapital: zahlAusEingabe(document.getElementById("eigenkapital")),
+    zinssatz: prozentAusEingabe(document.getElementById("zinssatz")),
+    tilgungssatz: prozentAusEingabe(document.getElementById("tilgungssatz")),
+    wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
+    kaufnebenkosten_prozent: Number(document.getElementById("kaufnebenkosten").value),
+    afa_prozent: Number(document.getElementById("afa").value),
+    gebaeudeanteil_prozent: prozentAusEingabe(document.getElementById("gebaeudeanteil")),
+    steuersatz_prozent: prozentAusEingabe(document.getElementById("steuersatz")),
+  };
+
+  panel.innerHTML = renderKennzahlKacheln(berechneRenditeClient(input));
+}
+const aktualisiereLiveVorschauDebounced = debounce(aktualisiereLiveVorschau, 200);
+
+// Textfelder: Live-Vorschau bei jedem Tastendruck (entkoppelt), Regler: Anzeige + Vorschau sofort
+["objKaufpreis", "objWohnflaeche", "objKaltmiete", "eigenkapital", "zinssatz", "tilgungssatz", "gebaeudeanteil", "steuersatz"].forEach(id => {
+  document.getElementById(id).addEventListener("input", aktualisiereLiveVorschauDebounced);
+});
+function wireRegler(reglerId, wertSpanId) {
+  const regler = document.getElementById(reglerId);
+  const span = document.getElementById(wertSpanId);
+  regler.addEventListener("input", () => {
+    span.textContent = regler.value;
+    aktualisiereLiveVorschauDebounced();
+  });
+}
+wireRegler("kaufnebenkosten", "knkWert");
+wireRegler("afa", "afaWert");
 
 // --- Gesamteinschätzung: KI-Fließtext von Gemini ---
 function renderGesamteinschaetzung(ergebnis) {
@@ -299,6 +438,7 @@ function setzeFormularModus(modus) {
     submitBtn.textContent = "Objekt speichern";
     titel.textContent = "Objekt bearbeiten";
   }
+  aktualisiereLiveVorschau();
 }
 
 function bearbeitenToggle() {
@@ -358,21 +498,30 @@ async function ladeObjekte() {
     auswahl.value = bisherigeAuswahl;
   }
 
-  const filter = document.getElementById("verlaufObjektFilter");
-  const bisherigerFilter = filter.value;
-  filter.innerHTML = `<option value="">Alle Objekte</option>`;
-  objekteCache.forEach(o => {
-    filter.innerHTML += `<option value="${o.id}">${escapceText(o.bezeichnung)}</option>`;
-  });
-  if ([...filter.options].some(opt => opt.value === bisherigerFilter)) {
-    filter.value = bisherigerFilter;
-  }
+  renderVerlaufFilterChips();
 }
 
-document.getElementById("verlaufObjektFilter").addEventListener("change", (e) => {
-  aktiverVerlaufFilter = e.target.value ? Number(e.target.value) : null;
-  renderVerlaufListe();
-});
+// --- Verlauf-Filter als anklickbare Chips (ersetzt das fruehere <select>) ---
+function renderVerlaufFilterChips() {
+  const container = document.getElementById("verlaufFilterChips");
+  // aktiverVerlaufFilter bezieht sich auf ein evtl. inzwischen geloeschtes Objekt:
+  // in dem Fall stillschweigend auf "Alle Objekte" zuruecksetzen
+  if (aktiverVerlaufFilter !== null && !objekteCache.some(o => o.id === aktiverVerlaufFilter)) {
+    aktiverVerlaufFilter = null;
+  }
+  const chips = [{ id: null, label: "Alle Objekte" }, ...objekteCache.map(o => ({ id: o.id, label: o.bezeichnung }))];
+  container.innerHTML = chips.map(c => `
+    <button type="button" class="chip ${aktiverVerlaufFilter === c.id ? "aktiv" : ""}" data-filter-id="${c.id ?? ""}">${escapceText(c.label)}</button>
+  `).join("");
+  container.querySelectorAll(".chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const wert = btn.dataset.filterId;
+      aktiverVerlaufFilter = wert ? Number(wert) : null;
+      renderVerlaufFilterChips();
+      renderVerlaufListe();
+    });
+  });
+}
 
 // --- Verlauf ---
 async function ladeVerlauf() {
@@ -474,21 +623,30 @@ async function zeigeVergleich() {
 
 // --- Ansicht-Umschaltung + minimales Hash-Routing ---
 // Der System-Zurueck-Button (popstate) fuehrt aus der Ergebnis-/Vergleichsansicht
-// zur Hauptansicht zurueck, statt die App zu verlassen. Deep-Links (#ergebnis)
-// koennen ohne geladene Inhalte nichts anzeigen und fallen sicher auf "haupt".
-const ANSICHTEN = ["haupt", "ergebnis", "vergleich"];
+// zur vorherigen Ansicht zurueck, statt die App zu verlassen. Deep-Links (#ergebnis)
+// koennen ohne geladene Inhalte nichts anzeigen und fallen sicher auf "rechner".
+const ANSICHTEN = ["rechner", "verlauf", "ergebnis", "vergleich"];
+
+function aktualisiereNavAktiv(name) {
+  document.querySelectorAll(".nav-tab").forEach(tab => {
+    tab.classList.toggle("aktiv", tab.dataset.ansicht === name);
+  });
+}
 
 function schalteAnsicht(name) {
-  document.getElementById("ansichtHaupt").hidden = name !== "haupt";
+  document.getElementById("ansichtRechner").hidden = name !== "rechner";
+  document.getElementById("ansichtVerlauf").hidden = name !== "verlauf";
   document.getElementById("ansichtErgebnis").hidden = name !== "ergebnis";
   document.getElementById("ansichtVergleich").hidden = name !== "vergleich";
-  if (name === "haupt") { ausgewaehlteIds = []; ladeVerlauf(); }
+  aktualisiereNavAktiv(name);
+  if (name === "verlauf") { ausgewaehlteIds = []; ladeVerlauf(); }
+  if (name === "rechner") { aktualisiereLiveVorschau(); }
 }
 
 function zeigeAnsicht(name) {
-  const ziel = ANSICHTEN.includes(name) ? name : "haupt";
+  const ziel = ANSICHTEN.includes(name) ? name : "rechner";
   schalteAnsicht(ziel);
-  const zielHash = ziel === "haupt" ? "" : "#" + ziel;
+  const zielHash = ziel === "rechner" ? "" : "#" + ziel;
   const bereitsImVerlauf = history.state?.ansicht === ziel &&
     location.hash === zielHash;
   if (!bereitsImVerlauf) {
@@ -497,7 +655,7 @@ function zeigeAnsicht(name) {
 }
 
 window.addEventListener("popstate", e => {
-  const name = ANSICHTEN.includes(e.state?.ansicht) ? e.state.ansicht : "haupt";
+  const name = ANSICHTEN.includes(e.state?.ansicht) ? e.state.ansicht : "rechner";
   schalteAnsicht(name);
 });
 
@@ -506,7 +664,7 @@ function zurueckZurHauptansicht() {
   if (history.state?.ansicht) {
     history.back();
   } else {
-    zeigeAnsicht("haupt");
+    zeigeAnsicht("rechner");
   }
 }
 document.getElementById("zurueckButton").addEventListener("click", zurueckZurHauptansicht);
@@ -514,26 +672,24 @@ document.getElementById("zurueckButtonVergleich").addEventListener("click", zuru
 
 // Alter Hash beim Start neutralisieren (z.B. Reload auf #ergebnis ohne Daten)
 if (location.hash) {
-  history.replaceState({ ansicht: "haupt" }, "", location.pathname + location.search);
+  history.replaceState({ ansicht: "rechner" }, "", location.pathname + location.search);
 }
 
 // --- Cashflow-/GuV-Abschnitte (gemeinsam genutzt von Ergebnis- und Vergleichsseite) ---
-// Als <details open>: standardmaessig ausgeklappt, auf dem Handy einklappbar;
-// die Kopfkennzahl in der summary bleibt auch eingeklappt sichtbar.
+// Statische Karten statt Klapp-Boxen: beide waren ohnehin immer offen und zeigten den
+// Endwert zusaetzlich noch einmal im Header - das war die eigentliche Unuebersichtlichkeit,
+// nicht das Klappen an sich. Der Wert steht jetzt nur noch einmal, in der Ergebniszeile.
 function renderCashflowAbschnitt(ergebnis) {
   const cf = ergebnis.cashflow;
   const negCashflow = cf.cashflow_monatlich < 0;
   return `
-    <details class="abschnitt aufklappbar" open>
-      <summary>
-        <span class="abschnitt-titel">Cashflow-Sicht (monatlich)</span>
-        <span class="abschnitt-kopfwert num ${negCashflow ? "negativ" : "positiv"}">${formatZahl(cf.cashflow_monatlich)} €</span>
-      </summary>
+    <div class="abschnitt">
+      <div class="abschnitt-titel">Cashflow-Sicht (monatlich)</div>
       <div class="zeile"><span>Mieteinnahmen</span><span class="num">${formatZahl(cf.miete_monatlich)} €</span></div>
       <div class="zeile"><span>Zins</span><span class="num">-${formatZahl(cf.zins_monatlich)} €</span></div>
       <div class="zeile"><span>Tilgung</span><span class="num">-${formatZahl(cf.tilgung_monatlich)} €</span></div>
       <div class="zeile summe ${negCashflow ? "negativ" : "positiv"}"><span>Cashflow</span><span class="num">${formatZahl(cf.cashflow_monatlich)} €</span></div>
-    </details>
+    </div>
   `;
 }
 
@@ -549,19 +705,16 @@ function renderGuvAbschnitt(ergebnis) {
   const steuerKlasse = isErstattung ? "positiv" : "negativ";
 
   return `
-    <details class="abschnitt aufklappbar" open>
-      <summary>
-        <span class="abschnitt-titel">GuV-Sicht (steuerlich, pro Jahr)</span>
-        <span class="abschnitt-kopfwert num ${negNachSteuer ? "negativ" : "positiv"}">${formatZahl(guv.cashflow_nach_steuern_monatlich)} €</span>
-      </summary>
+    <div class="abschnitt">
+      <div class="abschnitt-titel">GuV-Sicht (steuerlich, pro Jahr)</div>
       <div class="zeile"><span>Mieteinnahmen</span><span class="num">${formatZahl(guv.miete_jahr)} €</span></div>
       <div class="zeile"><span>Zinsen</span><span class="num">-${formatZahl(guv.zinsen_jahr)} €</span></div>
       <div class="zeile"><span>AfA (${guv.afa_prozent}% auf ${guv.gebaeudeanteil_prozent}% Gebäudeanteil)</span><span class="num">-${formatZahl(guv.afa_jahr)} €</span></div>
       <div class="zeile summe ${negGewinn ? "negativ" : "positiv"}"><span>Steuerlicher Gewinn/Verlust</span><span class="num">${formatZahl(guv.steuerlicher_gewinn_jahr)} €</span></div>
       <div class="zeile"><span>${steuerLabel} (${guv.steuersatz_prozent}%)</span><span class="num ${steuerKlasse}">${steuerVorzeichen}${steuerBetrag} €</span></div>
-      <div class="zeile summe ${negNachSteuer ? "negativ" : "positiv"}"><span>Cashflow nach Steuern (mtl.)</span><span class="num">${formatZahl(guv.cashflow_nach_steuern_monatlich)} €</span></div>
-      <div class="zeile summe ${negEkrNachSteuer ? "negativ" : "positiv"}"><span>Eigenkapitalrendite nach Steuern</span><span class="num">${formatQuote(guv.eigenkapitalrendite_nach_steuern)} %</span></div>
-    </details>
+      <div class="ergebnis-zeile ${negNachSteuer ? "negativ" : "positiv"}"><span>Cashflow nach Steuern (mtl.)</span><span class="num" data-metrik="cf-nach-steuern">${formatZahl(guv.cashflow_nach_steuern_monatlich)} €</span></div>
+      <div class="ergebnis-zeile ${negEkrNachSteuer ? "negativ" : "positiv"}"><span>Eigenkapitalrendite nach Steuern</span><span class="num" data-metrik="ekr-nach-steuern">${formatQuote(guv.eigenkapitalrendite_nach_steuern)} %</span></div>
+    </div>
   `;
 }
 
@@ -602,7 +755,7 @@ function renderVergleich(liste) {
       ${renderEingabeBox(ergebnis)}
 
       <div class="kpi-leiste-klein">
-        <div><div class="label">Brutto</div><div class="wert num">${formatQuote(ergebnis.bruttomietrendite)}%</div></div>
+        <div><div class="label">Brutto</div><div class="wert num" data-metrik="brutto">${formatQuote(ergebnis.bruttomietrendite)}%</div></div>
         <div><div class="label">KPF</div><div class="wert num">${formatQuote(ergebnis.kaufpreisfaktor)}</div></div>
         ${ergebnis.kaufpreis_pro_qm !== null ? `<div><div class="label">€/m²</div><div class="wert num">${formatZahl(ergebnis.kaufpreis_pro_qm)}</div></div>` : ""}
       </div>
@@ -613,6 +766,31 @@ function renderVergleich(liste) {
   `).join("");
 
   document.getElementById("vergleichInhalt").innerHTML = spalten;
+  hebeVergleichsUnterschiedeHervor(liste);
+}
+
+// --- Beste/schlechteste Werte je Kennzahl ueber die verglichenen Objekte farblich hervorheben ---
+function hebeVergleichsUnterschiedeHervor(liste) {
+  if (liste.length < 2) return;
+  const spalten = [...document.querySelectorAll("#vergleichInhalt .vergleich-spalte")];
+  const metriken = [
+    { attr: "brutto", wert: e => e.bruttomietrendite },
+    { attr: "cf-nach-steuern", wert: e => e.guv?.cashflow_nach_steuern_monatlich },
+    { attr: "ekr-nach-steuern", wert: e => e.guv?.eigenkapitalrendite_nach_steuern },
+  ];
+  metriken.forEach(m => {
+    const werte = liste.map(m.wert);
+    if (werte.some(w => w === null || w === undefined || !isFinite(w))) return;
+    const maxWert = Math.max(...werte);
+    const minWert = Math.min(...werte);
+    if (maxWert === minWert) return; // alle Objekte gleichauf, nichts hervorzuheben
+    spalten.forEach((spalte, i) => {
+      const el = spalte.querySelector(`[data-metrik="${m.attr}"]`);
+      if (!el) return;
+      if (werte[i] === maxWert) el.classList.add("vergleich-bestwert");
+      else if (werte[i] === minWert) el.classList.add("vergleich-schlechtwert");
+    });
+  });
 }
 
 // --- Formular-Submit ---
@@ -701,5 +879,6 @@ document.getElementById("renditeForm").addEventListener("submit", async (e) => {
 });
 
 setzeFormularModus("neu");
+aktualisiereNavAktiv("rechner");
 ladeObjekte();
 ladeVerlauf();

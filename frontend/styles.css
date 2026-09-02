@@ -1,16 +1,17 @@
 :root {
-  --bg: #FFFFFF;
-  --surface: #F7F8FA;
-  --surface-hover: #EEF0F4;
-  --border: #E7E9EE;
-  --ink: #14161A;
-  --muted: #6B7280;
-  --accent: #2E4374;
-  --accent-soft: #E8ECF5;
-  --pos: #1F8A5F;
-  --pos-soft: #E5F3ED;
-  --neg: #C4432B;
-  --neg-soft: #FBEAE6;
+  --bg: #0B0D12;
+  --surface: #161A24;
+  --surface-hover: #1E2330;
+  --border: #262B38;
+  --ink: #E9EBF1;
+  --muted: #8B93A8;
+  --accent: #7C93D6;
+  --accent-strong: #9DB0E6;
+  --accent-soft: rgba(124, 147, 214, 0.16);
+  --pos: #4CC38A;
+  --pos-soft: rgba(76, 195, 138, 0.14);
+  --neg: #E2694E;
+  --neg-soft: rgba(226, 105, 78, 0.14);
 }
 
 * { box-sizing: border-box; }
@@ -27,15 +28,55 @@ body {
 
 .num { font-variant-numeric: tabular-nums; }
 
-.kopf { padding: 2rem 2rem 0.25rem; max-width: 900px; margin: 0 auto; }
-.kopf .titel { font-weight: 800; font-size: 1.5rem; letter-spacing: -0.02em; }
-.kopf .untertitel { color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
+/* ===== Top-Navigation (ersetzt den frueheren .kopf-Bereich) ===== */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: 64px;
+  padding: 0 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.topnav-marke { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+.topnav-logo {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--accent); color: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.85rem;
+}
+.topnav-name { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; }
+
+.topnav-tabs { display: flex; gap: 0.2rem; }
+.nav-tab {
+  width: auto; margin: 0; min-height: auto;
+  padding: 0.5rem 0.9rem;
+  background: none; color: var(--muted);
+  border: none; border-radius: 8px;
+  font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+}
+.nav-tab:hover { background: var(--surface-hover); }
+.nav-tab.aktiv { background: var(--accent-soft); color: var(--accent-strong); }
+
+.topnav-aktionen { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-left: auto; }
 
 .seiten-grid {
-  max-width: 900px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 1.25rem 2rem 3rem;
+  padding: 1.5rem 2rem 3rem;
 }
+
+/* ===== Rechner-Ansicht: Formular + Live-Vorschau nebeneinander ===== */
+.rechner-grid { display: grid; grid-template-columns: 1fr 360px; gap: 1.75rem; align-items: start; }
+.rechner-formular-spalte { position: sticky; top: calc(64px + 1.25rem); }
+
+.live-vorschau { background: var(--surface); border-radius: 14px; padding: 1.3rem 1.4rem; }
+.live-vorschau-kopf { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--muted); margin-bottom: 1rem; }
+.live-punkt { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); flex-shrink: 0; }
+.live-vorschau-hinweis { color: var(--muted); font-size: 0.78rem; margin: 0.9rem 0 0; line-height: 1.5; }
 
 .karte-breit {
   background: var(--surface);
@@ -47,8 +88,13 @@ body {
 
 .spalten-titel { font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 0.4rem; }
 
-.param-zeile { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.3rem; }
-.param-zeile label { flex: 1; min-width: 90px; margin-top: 0; }
+/* Grid statt Flex: jedes Feld bekommt eine Mindestbreite (auto-fit/minmax), die fuer
+   die laengste Beschriftung ("Kaltmiete monatlich (€)") in einer Zeile reicht - passt
+   nicht mehr genug Platz, wandert das naechste Feld in die naechste Zeile, statt dass
+   alle Felder gequetscht werden und Labels umbrechen. */
+.param-zeile { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.7rem 0.9rem; margin-top: 0.3rem; }
+.param-zeile label { margin-top: 0; }
+.feld-label { display: block; }
 
 .regler-zeile { display: flex; gap: 1.5rem; margin-top: 0.9rem; flex-wrap: wrap; align-items: start; }
 .regler-zeile > div { flex: 1; min-width: 160px; }
@@ -105,7 +151,7 @@ button {
   min-height: 46px;
   padding: 0.6rem 1rem;
   background: var(--accent);
-  color: white;
+  color: var(--bg);
   border: none;
   border-radius: 8px;
   font-family: 'Inter', sans-serif;
@@ -113,7 +159,7 @@ button {
   font-weight: 600;
   cursor: pointer;
 }
-button:hover { background: #24365E; }
+button:hover { background: var(--accent-strong); }
 button:disabled { cursor: default; }
 
 /* Ladezustand: Text wird unsichtbar (bleibt fuer Screenreader erhalten), Spinner ueberlagert mittig */
@@ -124,8 +170,8 @@ button:disabled { cursor: default; }
   width: 18px; height: 18px;
   margin: -9px 0 0 -9px;
   top: 50%; left: 50%;
-  border: 2.5px solid rgba(255, 255, 255, 0.4);
-  border-top-color: white;
+  border: 2.5px solid rgba(11, 13, 18, 0.35);
+  border-top-color: var(--bg);
   border-radius: 50%;
   animation: btn-spin 0.7s linear infinite;
 }
@@ -142,8 +188,18 @@ button.btn-laedt { position: relative; }
 
 .verlauf-titel { font-weight: 700; font-size: 1.05rem; margin-bottom: 1rem; }
 
-.verlauf-filter-zeile { margin-bottom: 1rem; }
-.verlauf-filter-zeile select { max-width: 260px; margin-top: 0; }
+/* ===== Verlauf-Filter als Chips (statt Dropdown) ===== */
+.filter-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.chip {
+  width: auto; margin: 0; min-height: auto;
+  padding: 0.45rem 0.9rem;
+  border-radius: 20px;
+  background: var(--surface); color: var(--muted);
+  border: 1px solid var(--border);
+  font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 500;
+}
+.chip:hover { background: var(--surface-hover); }
+.chip.aktiv { background: var(--accent-soft); color: var(--accent-strong); border-color: transparent; }
 
 .liste-zeile {
   display: flex; justify-content: space-between; align-items: center;
@@ -163,11 +219,14 @@ button.btn-laedt { position: relative; }
 
 .vergleichsleiste {
   display: flex; justify-content: space-between; align-items: center;
-  background: var(--accent); color: white; padding: 0.65rem 1rem; border-radius: 10px;
+  background: var(--accent); color: var(--bg); padding: 0.65rem 1rem; border-radius: 10px;
   margin-top: 0.8rem; font-size: 0.85rem;
 }
-.vergleichsleiste button { background: white; color: var(--accent); width: auto; margin: 0; padding: 0.4rem 1rem; min-height: 44px; }
-.vergleichsleiste button:hover { background: var(--accent-soft); }
+.vergleichsleiste button { background: var(--bg); color: var(--accent); width: auto; margin: 0; padding: 0.4rem 1rem; min-height: 44px; }
+.vergleichsleiste button:hover { background: var(--surface-hover); }
+/* Gleicher Grund wie bei .btn-loeschen-icon[hidden]: display:flex auf .vergleichsleiste
+   ueberschreibt sonst das hidden-Attribut, da Autoren-Regeln die UA-[hidden]-Regel schlagen */
+.vergleichsleiste[hidden] { display: none; }
 
 .link-zurueck {
   background: none; color: var(--accent); border: none; margin: 0 0 1.1rem; width: auto;
@@ -190,6 +249,9 @@ button.btn-laedt { position: relative; }
 .kennzahl-kacheln { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
 @media (max-width: 640px) { .kennzahl-kacheln { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 400px) { .kennzahl-kacheln { grid-template-columns: 1fr; } }
+/* Muss nach der .kennzahl-kacheln-Basisregel stehen, sonst gewinnt bei gleicher
+   Spezifitaet die spaetere Basisregel und ueberschreibt die 2-Spalten-Vorschau */
+.kennzahl-kacheln--vorschau { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
 .kachel { background: var(--bg); border-radius: 10px; padding: 0.65rem 0.75rem; }
 .kachel-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.15rem; }
 .kachel-wert { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -206,6 +268,17 @@ button.btn-laedt { position: relative; }
 .positiv { color: var(--pos); }
 .negativ { color: var(--neg); }
 
+/* Ergebniszeile in der GuV-Sicht: eigener farbig hinterlegter Block statt nur
+   fett+Trennlinie - hebt die zwei Endwerte (Cashflow/EK-Rendite nach Steuern)
+   klarer von den Zwischenschritten darueber ab. */
+.ergebnis-zeile { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0.7rem; border-radius: 8px; margin-top: 0.5rem; font-weight: 700; font-size: 0.85rem; }
+.ergebnis-zeile.positiv { background: var(--pos-soft); }
+.ergebnis-zeile.negativ { background: var(--neg-soft); }
+
+/* Vergleichs-Hervorhebung: bester/schlechtester Wert je Kennzahl ueber die verglichenen Objekte */
+.vergleich-bestwert { background: var(--pos-soft); color: var(--pos); border-radius: 6px; padding: 0.1rem 0.4rem; }
+.vergleich-schlechtwert { background: var(--neg-soft); color: var(--neg); border-radius: 6px; padding: 0.1rem 0.4rem; }
+
 #vergleichInhalt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; align-items: start; }
 .vergleich-spalte { background: var(--surface); border-radius: 10px; padding: 1rem; }
 .vergleich-titel { font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere; }
@@ -214,8 +287,7 @@ button.btn-laedt { position: relative; }
 .kpi-leiste-klein .label { font-size: 0.7rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
 .kpi-leiste-klein .wert { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
 
-/* ===== Kopf-Aktionen & ruhige Textbuttons ===== */
-.kopf-aktionen { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; }
+/* ===== Ruhige Textbuttons (Kopf-Aktionen etc.) ===== */
 .btn-text {
   width: auto; margin-top: 0; min-height: 44px;
   padding: 0.35rem 0.5rem;
@@ -224,17 +296,19 @@ button.btn-laedt { position: relative; }
   font-size: 0.82rem; font-weight: 600;
   cursor: pointer;
 }
-.btn-text:hover { background: none; color: #24365E; text-decoration: underline; }
+.btn-text:hover { background: none; color: var(--accent-strong); text-decoration: underline; }
 
 /* ===== Eigene Dialoge (Erstaz fuer native prompt/confirm/alert) ===== */
 dialog.dialog {
+  background: var(--surface);
+  color: var(--ink);
   border: none;
   border-radius: 14px;
   padding: 1.25rem 1.3rem;
   width: min(92vw, 420px);
-  box-shadow: 0 24px 60px rgba(20, 22, 26, 0.25);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
 }
-dialog.dialog::backdrop { background: rgba(20, 22, 26, 0.45); }
+dialog.dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 .dialog-titel { font-weight: 700; font-size: 1rem; margin: 0 0 0.35rem; }
 .dialog-text { margin: 0; font-size: 0.9rem; line-height: 1.55; overflow-wrap: anywhere; }
 .dialog-eingabe-label { margin-top: 1rem; }
@@ -262,60 +336,42 @@ dialog.dialog::backdrop { background: rgba(20, 22, 26, 0.45); }
   pointer-events: none;
 }
 .toast {
-  background: var(--ink);
-  color: white;
+  background: var(--surface-hover);
+  color: var(--ink);
+  border: 1px solid var(--border);
   padding: 0.65rem 1rem;
   border-radius: 10px;
   font-size: 0.85rem;
   line-height: 1.45;
-  box-shadow: 0 8px 24px rgba(20, 22, 26, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   overflow-wrap: anywhere;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
-.toast.toast-fehler { background: var(--neg); }
+.toast.toast-fehler { background: var(--neg); color: var(--bg); border-color: var(--neg); }
 .toast.toast-weg { opacity: 0; transform: translateY(6px); }
-
-/* ===== Aufklappbare Kennzahlen-Abschnitte ===== */
-details.abschnitt summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  cursor: pointer;
-  list-style: none;
-  margin-bottom: 0.15rem;
-}
-details.abschnitt summary::-webkit-details-marker { display: none; }
-details.abschnitt summary::after {
-  content: "▾";
-  color: var(--muted);
-  font-size: 0.8rem;
-  flex-shrink: 0;
-  transform-origin: center;
-  transition: transform 0.15s ease;
-}
-details.abschnitt[open] summary::after { transform: rotate(180deg); }
-summary .abschnitt-titel { margin-bottom: 0; }
-.abschnitt-kopfwert { font-weight: 800; font-size: 0.95rem; white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
-  details.abschnitt summary::after { transition: none; }
-  .btn-laedt { color: white; }
+  .btn-laedt { color: var(--bg); }
   .btn-laedt::after { content: none; }
+}
+
+/* ===== Rechner-Zweispalter faellt vor der 640px-Mobilgrenze auf eine Spalte zurueck,
+   da 360px Vorschau-Spalte + Formular sonst zu frueh eng wird ===== */
+@media (max-width: 900px) {
+  .rechner-grid { grid-template-columns: 1fr; }
+  .rechner-formular-spalte { position: static; }
 }
 
 /* ===== Mobile Anpassungen (<640px) ===== */
 @media (max-width: 640px) {
-  .kopf { padding: 1.25rem 1rem 0.25rem; }
   .seiten-grid { padding: 1rem 1rem 2.5rem; }
+  .topnav { flex-wrap: wrap; height: auto; padding: 0.6rem 1rem; gap: 0.6rem 1rem; }
+  .topnav-tabs { order: 3; width: 100%; }
 
-  /* Formular: bewusst einspaltig statt unkontrolliertem flex-wrap-Umbruch
-     (Inline-flex-Ratios der Labels sind im Grid-Kontext wirkungslos) */
-  .param-zeile { display: grid; grid-template-columns: 1fr; }
+  /* Auf schmalen Handys volle Breite pro Feld statt der auto-fit-Mindestbreite */
+  .param-zeile { grid-template-columns: 1fr; }
   .regler-zeile { flex-direction: column; gap: 0.9rem; }
-
-  .verlauf-filter-zeile select { max-width: none; width: 100%; }
 
   /* Kleinst-Fontgroessen auf kompakten Displays besser lesbar */
   .kachel-label { font-size: 0.68rem; }
