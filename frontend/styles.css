@@ -114,6 +114,23 @@ button {
   cursor: pointer;
 }
 button:hover { background: #24365E; }
+button:disabled { cursor: default; }
+
+/* Ladezustand: Text wird unsichtbar (bleibt fuer Screenreader erhalten), Spinner ueberlagert mittig */
+.btn-laedt { color: transparent; pointer-events: none; }
+.btn-laedt::after {
+  content: "";
+  position: absolute;
+  width: 18px; height: 18px;
+  margin: -9px 0 0 -9px;
+  top: 50%; left: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+button.btn-laedt { position: relative; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 
 .btn-klein {
   width: auto; margin: 0; padding: 0.4rem 0.8rem;
@@ -284,6 +301,8 @@ summary .abschnitt-titel { margin-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
   details.abschnitt summary::after { transition: none; }
+  .btn-laedt { color: white; }
+  .btn-laedt::after { content: none; }
 }
 
 /* ===== Mobile Anpassungen (<640px) ===== */

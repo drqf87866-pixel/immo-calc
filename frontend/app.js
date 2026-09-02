@@ -619,72 +619,85 @@ function renderVergleich(liste) {
 document.getElementById("renditeForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  if (formModus === "bearbeitenObjekt") {
-    const auswahlId = document.getElementById("objektAuswahl").value;
-    const input = {
-      bezeichnung: document.getElementById("objBezeichnung").value,
-      ort: document.getElementById("objOrt").value || undefined,
-      kaufpreis: zahlAusEingabe(document.getElementById("objKaufpreis")),
-      wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
-      miete_kalt_monatlich: zahlAusEingabe(document.getElementById("objKaltmiete")),
-    };
-    await apiFetch("/api/objekte/" + auswahlId, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    await ladeObjekte();
-    document.getElementById("objektAuswahl").value = auswahlId;
-    document.getElementById("objektAuswahl").dispatchEvent(new Event("change"));
-    await ladeVerlauf();
-    return;
-  }
+  const submitBtn = document.getElementById("formSubmitBtn");
+  submitBtn.disabled = true;
+  submitBtn.setAttribute("aria-busy", "true");
+  submitBtn.classList.add("btn-laedt");
 
-  let objektId;
-  if (formModus === "neu") {
-    const input = {
-      bezeichnung: document.getElementById("objBezeichnung").value,
-      ort: document.getElementById("objOrt").value || undefined,
-      kaufpreis: zahlAusEingabe(document.getElementById("objKaufpreis")),
-      wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
-      miete_kalt_monatlich: zahlAusEingabe(document.getElementById("objKaltmiete")),
+  try {
+    if (formModus === "bearbeitenObjekt") {
+      const auswahlId = document.getElementById("objektAuswahl").value;
+      const input = {
+        bezeichnung: document.getElementById("objBezeichnung").value,
+        ort: document.getElementById("objOrt").value || undefined,
+        kaufpreis: zahlAusEingabe(document.getElementById("objKaufpreis")),
+        wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
+        miete_kalt_monatlich: zahlAusEingabe(document.getElementById("objKaltmiete")),
+      };
+      await apiFetch("/api/objekte/" + auswahlId, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      await ladeObjekte();
+      document.getElementById("objektAuswahl").value = auswahlId;
+      document.getElementById("objektAuswahl").dispatchEvent(new Event("change"));
+      await ladeVerlauf();
+      return;
+    }
+
+    let objektId;
+    if (formModus === "neu") {
+      const input = {
+        bezeichnung: document.getElementById("objBezeichnung").value,
+        ort: document.getElementById("objOrt").value || undefined,
+        kaufpreis: zahlAusEingabe(document.getElementById("objKaufpreis")),
+        wohnflaeche_qm: zahlAusEingabe(document.getElementById("objWohnflaeche")) || undefined,
+        miete_kalt_monatlich: zahlAusEingabe(document.getElementById("objKaltmiete")),
+      };
+      const res = await apiFetch("/api/objekte", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const neu = await res.json();
+      objektId = neu.id;
+    } else {
+      objektId = Number(document.getElementById("objektAuswahl").value);
+    }
+
+    const finanzierung = {
+      objekt_id: objektId,
+      eigenkapital: zahlAusEingabe(document.getElementById("eigenkapital")),
+      zinssatz: prozentAusEingabe(document.getElementById("zinssatz")),
+      tilgungssatz: prozentAusEingabe(document.getElementById("tilgungssatz")),
+      kaufnebenkosten_prozent: Number(document.getElementById("kaufnebenkosten").value),
+      afa_prozent: Number(document.getElementById("afa").value),
+      gebaeudeanteil_prozent: prozentAusEingabe(document.getElementById("gebaeudeanteil")),
+      steuersatz_prozent: prozentAusEingabe(document.getElementById("steuersatz")),
     };
-    const res = await apiFetch("/api/objekte", {
+
+    const res = await apiFetch("/api/rendite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify(finanzierung),
     });
-    const neu = await res.json();
-    objektId = neu.id;
-  } else {
-    objektId = Number(document.getElementById("objektAuswahl").value);
+    const ergebnis = await res.json();
+    if (ergebnis.error) { zeigeToast(ergebnis.error, "fehler"); return; }
+
+    await ladeObjekte();
+    document.getElementById("objektAuswahl").value = objektId;
+    document.getElementById("objektAuswahl").dispatchEvent(new Event("change"));
+
+    renderErgebnis(ergebnis);
+    zeigeAnsicht("ergebnis");
+  } catch (err) {
+    zeigeToast("Verbindung fehlgeschlagen, bitte erneut versuchen.", "fehler");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.removeAttribute("aria-busy");
+    submitBtn.classList.remove("btn-laedt");
   }
-
-  const finanzierung = {
-    objekt_id: objektId,
-    eigenkapital: zahlAusEingabe(document.getElementById("eigenkapital")),
-    zinssatz: prozentAusEingabe(document.getElementById("zinssatz")),
-    tilgungssatz: prozentAusEingabe(document.getElementById("tilgungssatz")),
-    kaufnebenkosten_prozent: Number(document.getElementById("kaufnebenkosten").value),
-    afa_prozent: Number(document.getElementById("afa").value),
-    gebaeudeanteil_prozent: prozentAusEingabe(document.getElementById("gebaeudeanteil")),
-    steuersatz_prozent: prozentAusEingabe(document.getElementById("steuersatz")),
-  };
-
-  const res = await apiFetch("/api/rendite", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(finanzierung),
-  });
-  const ergebnis = await res.json();
-  if (ergebnis.error) { zeigeToast(ergebnis.error, "fehler"); return; }
-
-  await ladeObjekte();
-  document.getElementById("objektAuswahl").value = objektId;
-  document.getElementById("objektAuswahl").dispatchEvent(new Event("change"));
-
-  renderErgebnis(ergebnis);
-  zeigeAnsicht("ergebnis");
 });
 
 setzeFormularModus("neu");
