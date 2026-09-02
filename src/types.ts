@@ -1,6 +1,6 @@
 export interface Env {
 	immobilien_db: D1Database;
-	GROQ_API_KEY: string;
+	GEMINI_API_KEY: string;
 }
 
 export const corsHeaders = {

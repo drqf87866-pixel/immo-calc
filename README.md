@@ -1,6 +1,6 @@
 # Immo-Calc
 
-Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Cloudflare (ein Worker mit Static Assets + D1 + Groq), kein separates Backend, keine klassische Anmeldung.
+Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Cloudflare (ein Worker mit Static Assets + D1 + KI über Google Gemini), kein separates Backend, keine klassische Anmeldung.
 
 **Live-URL:**
 - Komplettes Projekt (Frontend + API): `https://immo-calc.drqf87866.workers.dev`
@@ -16,7 +16,7 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 | Backend | Cloudflare Worker (TypeScript) |
 | Datenbank | Cloudflare D1 (SQLite) |
 | Frontend | Statisches HTML/CSS/JS, als Static Assets direkt vom Worker serviert |
-| KI | Groq (openai/gpt-oss-120b) |
+| KI | Google Gemini (gemini-3.5-flash-lite) |
 | Nutzertrennung | Gast-ID im Browser (kein Login) |
 
 ---
@@ -46,10 +46,8 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 - Checkbox-Auswahl von bis zu 3 Einträgen → Vergleichsansicht mit vollständiger Cashflow-/GuV-Aufschlüsselung nebeneinander
 
 ### KI-Einschätzung
-- Pro Berechnung bewertet ein KI-Modell jede Kennzahl einzeln (1 Satz, praktische Konsequenz statt nur "gut/schlecht")
-- Feste, recherchierte Richtwerte für den deutschen Markt sind im Prompt hinterlegt (z. B. Kaufpreisfaktor bis 20 günstig, Metropolen 25–45 normal), damit das Modell nicht raten muss
-- Werte + KI-Text werden gemeinsam in 8 Kennzahl-Kacheln auf der Ergebnisseite angezeigt (siehe Design)
-- **Modell-Historie (mehrfach getauscht, siehe "Offene Punkte"):** Cloudflare Llama 3.1 8B → Groq (Llama 3.3 70B → GPT-OSS 120B) → zurück zu Cloudflare, dort mehrere Modelle durchprobiert → Google Gemini (gemini-3.6-flash) → **Groq (GPT-OSS 120B für die Einschätzung)**
+- Pro Berechnung liefert die KI eine Gesamteinschätzung (max. 3–4 Sätze) zu Rentabilität und Risiko – Tonalität richtet sich nach den tatsächlichen Kennzahlen (kein erzwungenes Problem bei guten Werten, keine erfundenen Risiken), ohne vorgegebene Richtwerte, das Modell interpretiert die Kennzahlen mit eigenem Fachwissen
+- **Modell-Historie (mehrfach getauscht, siehe "Offene Punkte"):** Cloudflare Llama 3.1 8B → Groq (Llama 3.3 70B → GPT-OSS 120B) → zurück zu Cloudflare, dort mehrere Modelle durchprobiert → Google Gemini (gemini-3.6-flash) → Groq (GPT-OSS 120B) → kurzzeitig Groq + Gemini parallel zum Anbietervergleich getestet → **Entscheidung auf Google Gemini (gemini-3.5-flash-lite), Groq entfernt**
 
 ### Design
 - Eigenes Layout ("Klar"-Stil): helles Fintech-Minimal, Inter-Schrift, ein Indigo-Akzent, große fette Kennzahlen
@@ -76,12 +74,13 @@ Rendite-Kalkulationstool für Kapitalanlage-Immobilien. Läuft komplett auf Clou
 | **Tavily-Websuche für die KI** | Bewusst nicht eingebaut: kein Ortsbezug mehr in den Daten (macht Suche kaum spezifischer als die festen Richtwerte), Risiko uneinheitlicher Ergebnisse zwischen Anfragen, zusätzliche externe Abhängigkeit ohne klaren Mehrwert |
 | **ImmoScout-Anzeigentext-Scan (KI-Import)** | Ausgebaut zugunsten manueller Eingabe / reduzierter Komplexität |
 | **Mehrere KI-Modelle** | Cloudflare `llama-3.1-8b-instruct` (abgekündigt), Cloudflare `gemma-4-26b-a4b-it` (Reasoning-Modell, lieferte leeren Text), Groq `llama-3.3-70b-versatile` (abgekündigt), Cloudflare `llama-3.3-70b-instruct-fp8-fast` (zu langsam), Cloudflare `glm-4.7-flash` (trotz Namens ein Reasoning-Modell, lieferte trotz langer Wartezeit keinen Text), Google Gemini `gemini-3.6-flash` (Rate-Limit 5 req/min) |
+| **Groq (`openai/gpt-oss-120b`) als KI-Anbieter** | Testweise parallel zu Gemini betrieben (Anbietervergleich anhand mehrerer Testfälle), danach bewusst auf Gemini festgelegt: fachlich konsistentere Markteinordnung, kein Regelverstoß (Groq hatte trotz Verbots vereinzelt Verkaufsempfehlungen ausgesprochen) |
 
 ---
 
 ## Aktueller Stand / offene Punkte
 
-- **KI-Provider:** Groq mit `openai/gpt-oss-120b` (KI-Einschätzung). Secret `GROQ_API_KEY` ist in Cloudflare gesetzt; für lokale Tests liegt `GROQ_API_KEY` in `.dev.vars`.
+- **KI-Provider final auf Gemini festgelegt:** Nach Anbietervergleich (siehe "Gestrichen") läuft nur noch Google Gemini `gemini-3.5-flash-lite`. Secret `GEMINI_API_KEY` muss in Cloudflare gesetzt sein; für lokale Tests liegt es in `.dev.vars`. Die `anbieter`-Spalte in `ki_einschaetzungen` (Migration `0005_ki_einschaetzungen_anbieter.sql`, `npx wrangler d1 migrations apply immobilien-db`, lokal mit `--local`, produktion mit `--remote`) bleibt bestehen und wird weiterhin mit `"gemini"` befüllt, dient aber aktuell nur der Nachvollziehbarkeit, nicht mehr der Anzeige. `GROQ_API_KEY` kann als Cloudflare-Secret gelöscht werden (`wrangler secret delete GROQ_API_KEY`), falls noch gesetzt.
 - **Diagnose-Fallback ist noch aktiv:** In `handlers/rendite.ts` gibt die KI-Textzuweisung im Fehlerfall aktuell `JSON.stringify(aiResponse)` statt eines festen Textes zurück – nützlich zum Debuggen, sollte aber durch eine saubere Fehlermeldung ersetzt werden, sobald das Modell final feststeht.
 - **`npx wrangler types` schlägt auf einem der beiden genutzten Laptops zuverlässig fehl** ("write EOF") – Ursache ungeklärt (Verdacht: OneDrive-Sync oder Antivirus im Projektordner). Workaround aktiv: `@cloudflare/workers-types` fest in der `tsconfig.json` eingetragen statt der automatisch generierten Typen.
 - **Git/GitHub eingerichtet:** Repo unter `drqf87866-pixel/immo-calc`. Der Worker ist im Cloudflare-Dashboard per **Workers Builds** mit dem Repo verknüpft – jeder Push auf `main` löst automatisch Build + Deploy aus (Settings → Builds im Dashboard).
@@ -111,6 +110,6 @@ immo-calc/
 
 - **`objekte`**: `id`, `bezeichnung`, `kaufpreis`, `wohnflaeche_qm`, `miete_kalt_monatlich`, `gast_id`, `erstellt_am`
 - **`kalkulationen`**: `id`, `objekt_id`, Finanzierungs-Eingaben (Eigenkapital, Zinssatz, Tilgungssatz, Kaufnebenkosten-/AfA-/Gebäudeanteil-/Steuersatz-Prozent), berechnete Kennzahlen, `erstellt_am`
-- **`ki_einschaetzungen`**: `id`, `kalkulation_id`, `text`, `erstellt_am`
+- **`ki_einschaetzungen`**: `id`, `kalkulation_id`, `anbieter` (`groq`/`gemini`), `text`, `erstellt_am`
 
 Kalkulationen speichern nur die *Eingaben*, nicht die berechneten Detail-Werte (Cashflow-/GuV-Aufschlüsselung) – diese werden beim Abruf über `berechneRendite()` deterministisch neu erzeugt.

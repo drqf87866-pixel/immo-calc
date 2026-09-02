@@ -242,7 +242,7 @@ function renderKennzahlKacheln(ergebnis) {
   }).join("");
 }
 
-// --- Gesamteinschätzung: 3-Satz-Fließtext der KI zum Zusammenspiel der Kennzahlen ---
+// --- Gesamteinschätzung: KI-Fließtext von Gemini ---
 function renderGesamteinschaetzung(ergebnis) {
   if (!ergebnis.einschaetzung) return "";
   return `

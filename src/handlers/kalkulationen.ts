@@ -47,7 +47,7 @@ export async function handleKalkulationGet(env: Env, id: string, gastId: string)
 		steuersatz_prozent: row.steuersatz_prozent,
 	});
 
-	const einschaetzung = await env.immobilien_db
+	const zeile = await env.immobilien_db
 		.prepare("SELECT text FROM ki_einschaetzungen WHERE kalkulation_id = ? ORDER BY id DESC LIMIT 1")
 		.bind(id)
 		.first<{ text: string }>();
@@ -62,7 +62,7 @@ export async function handleKalkulationGet(env: Env, id: string, gastId: string)
 			kalkulation_id: row.id,
 			objekt_bezeichnung: row.objekt_bezeichnung,
 			erstellt_am: row.erstellt_am,
-			einschaetzung: einschaetzung?.text ?? "Keine Einschätzung gespeichert.",
+			einschaetzung: zeile?.text ?? "Keine Einschätzung gespeichert.",
 		},
 		{ headers: corsHeaders }
 	);
