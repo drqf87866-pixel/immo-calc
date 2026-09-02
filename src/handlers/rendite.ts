@@ -92,6 +92,11 @@ export async function handleRenditeCreate(request: Request, env: Env, gastId: st
 			afa_prozent: body.afa_prozent,
 			gebaeudeanteil_prozent: body.gebaeudeanteil_prozent,
 			steuersatz_prozent: body.steuersatz_prozent,
+			bewirtschaftungskosten_prozent: body.bewirtschaftungskosten_prozent,
+			wertsteigerung_prozent: body.wertsteigerung_prozent,
+			mietsteigerung_prozent: body.mietsteigerung_prozent,
+			haltedauer_jahre: body.haltedauer_jahre,
+			verkaufskosten_prozent: body.verkaufskosten_prozent,
 		};
 
 		const ergebnis = berechneRendite(input);
@@ -105,8 +110,11 @@ export async function handleRenditeCreate(request: Request, env: Env, gastId: st
 					 cashflow_monatlich, eigenkapitalrendite,
 					 afa_prozent, gebaeudeanteil_prozent, steuersatz_prozent,
 					 steuerlicher_gewinn_jahr, cashflow_nach_steuern_monatlich,
-					 eigenkapitalrendite_nach_steuern, erstellt_am)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+					 eigenkapitalrendite_nach_steuern,
+					 bewirtschaftungskosten_prozent, wertsteigerung_prozent,
+					 mietsteigerung_prozent, haltedauer_jahre, verkaufskosten_prozent,
+					 erstellt_am)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 			)
 			.bind(
 				body.objekt_id,
@@ -125,6 +133,11 @@ export async function handleRenditeCreate(request: Request, env: Env, gastId: st
 				ergebnis.guv.steuerlicher_gewinn_jahr,
 				ergebnis.guv.cashflow_nach_steuern_monatlich,
 				ergebnis.guv.eigenkapitalrendite_nach_steuern,
+				ergebnis.guv.bewirtschaftungskosten_prozent,
+				ergebnis.prognose.wertsteigerung_prozent,
+				ergebnis.prognose.mietsteigerung_prozent,
+				ergebnis.prognose.haltedauer_jahre,
+				ergebnis.prognose.verkaufskosten_prozent,
 				new Date().toISOString()
 			)
 			.run();
@@ -149,7 +162,9 @@ Nettomietrendite: ${ergebnis.nettomietrendite} %
 Cashflow vor Steuern: ${ergebnis.cashflow.cashflow_monatlich} €
 Cashflow nach Steuern: ${ergebnis.guv.cashflow_nach_steuern_monatlich} €
 Eigenkapitalrendite: ${ergebnis.eigenkapitalrendite !== null ? ergebnis.eigenkapitalrendite + " %" : "nicht ermittelbar (kein Eigenkapital eingesetzt, 100% fremdfinanziert)"}
-Eigenkapitalrendite nach Steuern: ${ergebnis.guv.eigenkapitalrendite_nach_steuern !== null ? ergebnis.guv.eigenkapitalrendite_nach_steuern + " %" : "nicht ermittelbar (kein Eigenkapital eingesetzt, 100% fremdfinanziert)"}`,
+Eigenkapitalrendite nach Steuern: ${ergebnis.guv.eigenkapitalrendite_nach_steuern !== null ? ergebnis.guv.eigenkapitalrendite_nach_steuern + " %" : "nicht ermittelbar (kein Eigenkapital eingesetzt, 100% fremdfinanziert)"}
+Bewirtschaftungskosten: ${ergebnis.guv.bewirtschaftungskosten_prozent}% der Kaltmiete
+Prognose bei ${ergebnis.prognose.haltedauer_jahre} Jahren Haltedauer (${ergebnis.prognose.wertsteigerung_prozent}% Wertsteigerung, ${ergebnis.prognose.mietsteigerung_prozent}% Mietsteigerung p.a.): Gesamtrendite (IRR) ${ergebnis.prognose.gesamtrendite.irr_prozent !== null ? ergebnis.prognose.gesamtrendite.irr_prozent + " % p.a." : "nicht ermittelbar (kein Eigenkapital eingesetzt)"}`,
 			},
 		];
 

@@ -96,8 +96,15 @@ body {
 .param-zeile label { margin-top: 0; }
 .feld-label { display: block; }
 
-.regler-zeile { display: flex; gap: 1.5rem; margin-top: 0.9rem; flex-wrap: wrap; align-items: start; }
-.regler-zeile > div { flex: 1; min-width: 160px; }
+/* align-items bewusst nicht "start": Reglertext (v.a. die <small>-Hinweise) ist
+   unterschiedlich lang, dadurch stehen die Schieberegler ohne Stretch auf verschiedenen
+   Hoehen. Per Default-"stretch" bekommen alle Spalten einer Zeile die Hoehe der hoechsten,
+   und der Regler wird per margin-top:auto ans untere Ende jeder Spalte gedrueckt - so
+   liegen alle Regler unabhaengig von der Hinweistext-Laenge auf einer Linie. */
+.regler-zeile { display: flex; gap: 1.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+.regler-zeile > div { flex: 1; min-width: 160px; display: flex; }
+.regler-zeile > div > label { display: flex; flex-direction: column; width: 100%; }
+.regler-zeile input[type="range"] { margin-top: auto; }
 
 label { display: block; margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); font-weight: 500; }
 label small { display: block; font-weight: 400; margin-top: 0.05rem; color: var(--muted); font-size: 0.7rem; }
@@ -274,6 +281,14 @@ button.btn-laedt { position: relative; }
 .ergebnis-zeile { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0.7rem; border-radius: 8px; margin-top: 0.5rem; font-weight: 700; font-size: 0.85rem; }
 .ergebnis-zeile.positiv { background: var(--pos-soft); }
 .ergebnis-zeile.negativ { background: var(--neg-soft); }
+
+/* Mehrjahresprognose: Jahrestabelle mit horizontalem Scroll statt Umbruch/Stauchung auf schmalen Screens */
+.prognose-tabelle-wrapper { overflow-x: auto; margin-bottom: 0.7rem; }
+.prognose-tabelle { border-collapse: collapse; width: 100%; font-size: 0.78rem; white-space: nowrap; }
+.prognose-tabelle th, .prognose-tabelle td { padding: 0.32rem 0.6rem; text-align: right; }
+.prognose-tabelle th:first-child, .prognose-tabelle td:first-child { text-align: left; }
+.prognose-tabelle thead th { color: var(--muted); font-weight: 600; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 1px solid var(--border); }
+.prognose-tabelle tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
 
 /* Vergleichs-Hervorhebung: bester/schlechtester Wert je Kennzahl ueber die verglichenen Objekte */
 .vergleich-bestwert { background: var(--pos-soft); color: var(--pos); border-radius: 6px; padding: 0.1rem 0.4rem; }

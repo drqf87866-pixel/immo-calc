@@ -45,6 +45,11 @@ export async function handleKalkulationGet(env: Env, id: string, gastId: string)
 		afa_prozent: row.afa_prozent,
 		gebaeudeanteil_prozent: row.gebaeudeanteil_prozent,
 		steuersatz_prozent: row.steuersatz_prozent,
+		bewirtschaftungskosten_prozent: row.bewirtschaftungskosten_prozent,
+		wertsteigerung_prozent: row.wertsteigerung_prozent,
+		mietsteigerung_prozent: row.mietsteigerung_prozent,
+		haltedauer_jahre: row.haltedauer_jahre,
+		verkaufskosten_prozent: row.verkaufskosten_prozent,
 	});
 
 	const zeile = await env.immobilien_db
